@@ -44,7 +44,7 @@ exports.bookingLimiter = rateLimit({
 // Review creation rate limiting
 exports.reviewLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 5, // limit each IP to 5 reviews per day
+  max: process.env.NODE_ENV === 'development' ? 100 : 5, // 100 in dev, 5 in production
   message: {
     success: false,
     message: 'Too many review submissions, please try again tomorrow.',

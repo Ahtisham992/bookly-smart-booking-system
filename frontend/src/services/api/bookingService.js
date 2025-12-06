@@ -144,6 +144,57 @@ export const bookingService = {
         error: error.response?.data?.message || 'Failed to fetch booking statistics'
       }
     }
+  },
+
+  // Accept booking (provider)
+  async acceptBooking(bookingId) {
+    try {
+      const response = await api.patch(`/bookings/${bookingId}/accept`)
+      return {
+        success: true,
+        data: response.data.data || response.data,
+        message: response.data.message || 'Booking accepted successfully'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to accept booking'
+      }
+    }
+  },
+
+  // Reject booking (provider)
+  async rejectBooking(bookingId, reason = '') {
+    try {
+      const response = await api.patch(`/bookings/${bookingId}/reject`, { reason })
+      return {
+        success: true,
+        data: response.data.data || response.data,
+        message: response.data.message || 'Booking rejected'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to reject booking'
+      }
+    }
+  },
+
+  // Complete booking (provider)
+  async completeBooking(bookingId) {
+    try {
+      const response = await api.patch(`/bookings/${bookingId}/complete`)
+      return {
+        success: true,
+        data: response.data.data || response.data,
+        message: response.data.message || 'Booking marked as completed'
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to complete booking'
+      }
+    }
   }
 }
 

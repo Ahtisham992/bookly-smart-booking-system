@@ -34,25 +34,31 @@ const ServiceCard = ({ service }) => {
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
       {/* Service Image */}
       <div className="relative h-48 bg-gray-200">
-        {service.imageUrl ? (
+        {(service.media?.images?.[0] || service.imageUrl) ? (
           <img
-            src={service.imageUrl}
+            src={service.media?.images?.[0] || service.imageUrl}
             alt={service.title}
             className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = 'none'
-              e.target.nextSibling.style.display = 'flex'
+              e.target.nextElementSibling.style.display = 'flex'
             }}
           />
-        ) : null}
-        <div className="absolute inset-0 bg-gray-300 flex items-center justify-center text-gray-500">
-          <span className="text-sm">No Image</span>
-        </div>
+        ) : (
+          <div className="absolute inset-0 bg-gray-300 flex items-center justify-center text-gray-500">
+            <span className="text-sm">No Image</span>
+          </div>
+        )}
+        {(service.media?.images?.[0] || service.imageUrl) && (
+          <div className="absolute inset-0 bg-gray-300 items-center justify-center text-gray-500 hidden">
+            <span className="text-sm">No Image</span>
+          </div>
+        )}
         
         {/* Category Badge */}
         <div className="absolute top-3 left-3">
           <span className="bg-primary-600 text-white px-2 py-1 rounded-full text-xs font-medium">
-            {service.category}
+            {service.category?.name || service.category}
           </span>
         </div>
       </div>
@@ -71,7 +77,7 @@ const ServiceCard = ({ service }) => {
         {/* Price and Duration */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-2xl font-bold text-primary-600">
-            ${service.price}
+            ${service.pricing?.amount || service.price}
           </div>
           <div className="flex items-center text-gray-500 text-sm">
             <Clock className="w-4 h-4 mr-1" />

@@ -20,17 +20,57 @@ const ProviderDetail = () => {
   const canEdit = user && (user.role === 'admin' || (user.role === 'provider' && user.id === provider?.id))
 
   useEffect(() => {
-    const foundProvider = getProviderById(id)
-    setProvider(foundProvider)
-    
-    if (foundProvider && foundProvider.services) {
-      const services = foundProvider.services
-        .map(serviceId => getServiceById(serviceId))
-        .filter(Boolean)
-      setProviderServices(services)
+    const loadProviderData = async () => {
+      setLoading(true)
+      
+      // Get provider details
+      const foundProvider = getProviderById(id)
+      setProvider(foundProvider)
+      
+      if (foundProvider) {
+        // Fetch services from API by provider ID
+        try {
+          const { serviceService } = await import('@/services/api')
+          const providerId = foundProvider._id || foundProvider.id
+          console.log('Fetching services for provider:', providerId)
+          
+          const response = await serviceService.getServicesByProvider(providerId)
+          
+          console.log('Provider services response:', response)
+          
+          if (response.success && response.data) {
+            setProviderServices(Array.isArray(response.data) ? response.data : [])
+            console.log('Loaded services:', response.data.length)
+          } else {
+            console.log('No services found, trying fallback')
+            // Fallback: Try to get from services array if exists
+            if (foundProvider.services) {
+              const services = foundProvider.services
+                .map(serviceId => getServiceById(serviceId))
+                .filter(Boolean)
+              setProviderServices(services)
+            } else {
+              setProviderServices([])
+            }
+          }
+        } catch (error) {
+          console.error('Error loading provider services:', error)
+          // Fallback to context services
+          if (foundProvider.services) {
+            const services = foundProvider.services
+              .map(serviceId => getServiceById(serviceId))
+              .filter(Boolean)
+            setProviderServices(services)
+          } else {
+            setProviderServices([])
+          }
+        }
+      }
+      
+      setLoading(false)
     }
     
-    setLoading(false)
+    loadProviderData()
   }, [id, getProviderById, getServiceById])
 
   const handleDelete = async () => {
@@ -66,6 +106,10 @@ const ProviderDetail = () => {
         selectedServices: providerServices
       }
     })
+  }
+
+  const handleServiceClick = (serviceId) => {
+    navigate(`/services/${serviceId}`)
   }
 
   if (loading) {
@@ -131,21 +175,21 @@ const ProviderDetail = () => {
               <div className="px-6 pb-6">
                 {/* Profile Image */}
                 <div className="relative -mt-16 mb-4">
-                  <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white">
-                    {provider.imageUrl ? (
+                  <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
+                    {(provider.imageUrl || provider.providerInfo?.profileImage) ? (
                       <img
-                        src={provider.imageUrl}
+                        src={provider.imageUrl || provider.providerInfo?.profileImage}
                         alt={`${provider.firstName} ${provider.lastName}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.style.display = 'none'
-                          e.target.nextSibling.style.display = 'flex'
+                          e.target.nextElementSibling.style.display = 'flex'
                         }}
                       />
                     ) : null}
                     <div 
                       className={`w-full h-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-3xl ${
-                        provider.imageUrl ? 'hidden' : ''
+                        (provider.imageUrl || provider.providerInfo?.profileImage) ? 'hidden' : ''
                       }`}
                     >
                       {provider.firstName[0]}{provider.lastName[0]}
@@ -259,10 +303,14 @@ const ProviderDetail = () => {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Services Offered</h2>
                 <div className="grid gap-4">
                   {providerServices.map(service => (
-                    <div key={service.id} className="flex justify-between items-center p-4 border border-gray-200 rounded-lg">
+                    <div 
+                      key={service.id} 
+                      onClick={() => handleServiceClick(service.id || service._id)}
+                      className="flex justify-between items-center p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:shadow-md transition-all cursor-pointer"
+                    >
                       <div>
                         <h3 className="font-semibold text-gray-900">{service.title}</h3>
-                        <p className="text-gray-600 text-sm mt-1">{service.description}</p>
+                        <p className="text-gray-600 text-sm mt-1 line-clamp-2">{service.description}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span className="flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
@@ -270,14 +318,13 @@ const ProviderDetail = () => {
                           </span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-primary-600">${service.price}</div>
-                        <Link
-                          to={`/services/${service.id}`}
-                          className="text-sm text-primary-600 hover:text-primary-700"
+                      <div className="text-right flex-shrink-0 ml-4">
+                        <div className="text-lg font-bold text-primary-600">${service.pricing?.amount || service.price}</div>
+                        <button
+                          className="text-sm text-primary-600 hover:text-primary-700 font-medium mt-1"
                         >
-                          View Details
-                        </Link>
+                          Book Now →
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -299,13 +346,12 @@ const ProviderDetail = () => {
                 </div>
               </div>
 
-              <button
-                onClick={handleBookProvider}
-                className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 transition-colors mb-4"
-              >
-                <Calendar className="w-5 h-5 inline mr-2" />
-                Book Appointment
-              </button>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800 text-center">
+                  <Calendar className="w-4 h-4 inline mr-1" />
+                  Select a service below to book
+                </p>
+              </div>
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">

@@ -65,6 +65,12 @@ exports.getUser = async (req, res) => {
 // @access  Private
 exports.updateUser = async (req, res) => {
   try {
+    console.log('Update user request:', {
+      userId: req.params.id,
+      requestUserId: req.user.id,
+      body: req.body
+    })
+
     let user = await User.findById(req.params.id)
 
     if (!user) {
@@ -77,7 +83,7 @@ exports.updateUser = async (req, res) => {
     }
 
     // Fields that can be updated
-    const allowedFields = ['firstName', 'lastName', 'phone', 'preferences', 'profileImage']
+    const allowedFields = ['firstName', 'lastName', 'phone', 'preferences', 'profileImage', 'providerInfo']
     
     // Only admin can update role and verification status
     if (req.user.role === 'admin') {
@@ -91,6 +97,16 @@ exports.updateUser = async (req, res) => {
       }
     })
 
+    // Handle providerInfo separately for providers
+    if (req.body.providerInfo && req.user.role === 'provider') {
+      fieldsToUpdate.providerInfo = {
+        ...user.providerInfo?.toObject?.() || user.providerInfo || {},
+        ...req.body.providerInfo
+      }
+    }
+
+    console.log('Fields to update:', fieldsToUpdate)
+
     user = await User.findByIdAndUpdate(
       req.params.id,
       fieldsToUpdate,
@@ -100,8 +116,10 @@ exports.updateUser = async (req, res) => {
       }
     ).select('-password')
 
+    console.log('User updated successfully')
     sendSuccessResponse(res, user, 'User updated successfully')
   } catch (error) {
+    console.error('Update user error:', error)
     logger.error('Update user error:', error)
     
     if (error.name === 'ValidationError') {
@@ -109,7 +127,7 @@ exports.updateUser = async (req, res) => {
       return sendErrorResponse(res, message, 400)
     }
 
-    sendErrorResponse(res, 'Failed to update user', 500)
+    sendErrorResponse(res, `Failed to update user: ${error.message}`, 500)
   }
 }
 

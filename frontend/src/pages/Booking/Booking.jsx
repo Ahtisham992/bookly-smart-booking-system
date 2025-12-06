@@ -104,7 +104,6 @@ const Booking = () => {
             setAvailableProviders(allProviders)
         } else {
             setAvailableProviders([])
-            setFormData(prev => ({ ...prev, providerId: '' }))
         }
     }, [formData.serviceId, allProviders])
 

@@ -50,6 +50,14 @@ exports.createBooking = async (req, res) => {
     // Generate booking ID
     const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     
+    // Calculate end time based on duration
+    const [hours, minutes] = scheduledTime.split(':').map(Number)
+    const startMinutes = hours * 60 + minutes
+    const endMinutes = startMinutes + (service.duration || 60)
+    const endHours = Math.floor(endMinutes / 60)
+    const endMins = endMinutes % 60
+    const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
+    
     // Create booking
     const booking = await Booking.create({
       bookingId,
@@ -57,22 +65,41 @@ exports.createBooking = async (req, res) => {
       provider: providerId,
       service: serviceId,
       scheduledDate,
-      scheduledTime,
+      scheduledTime: {
+        start: scheduledTime,
+        end: endTime
+      },
+      duration: service.duration || 60,
       status: 'pending',
-      location: service.location,
+      location: service.location || {
+        type: 'provider-location'
+      },
       pricing: {
-        serviceFee: service.pricing.amount,
-        totalAmount: service.pricing.amount
+        serviceFee: service.pricing?.amount || service.price || 0,
+        totalAmount: service.pricing?.amount || service.price || 0
       },
-      timeline: {
-        requested: new Date()
+      payment: {
+        method: 'cash', // Default payment method
+        status: 'pending'
       },
-      notes
+      customerInfo: {
+        name: `${req.user.firstName} ${req.user.lastName}`,
+        email: req.user.email,
+        phone: req.user.phone,
+        notes: notes || ''
+      },
+      timeline: [{
+        status: 'pending',
+        timestamp: new Date(),
+        note: 'Booking created',
+        updatedBy: req.user.id
+      }]
     })
     
     // Populate the response
     await booking.populate([
       { path: 'customer', select: 'firstName lastName email phone' },
+      { path: 'provider', select: 'firstName lastName email phone providerInfo' },
       { path: 'provider', select: 'firstName lastName email phone' },
       { path: 'service', select: 'title description duration pricing' }
     ])
@@ -323,11 +350,12 @@ exports.cancelBooking = async (req, res) => {
     
     // Check if booking can be cancelled
     if (!['pending', 'confirmed'].includes(booking.status)) {
-      return sendErrorResponse(res, 'Booking cannot be cancelled in current status', 400)
+      return sendErrorResponse(res, `Booking cannot be cancelled in current status: ${booking.status}. Only pending or confirmed bookings can be cancelled.`, 400)
     }
     
     // Calculate cancellation fee if applicable
-    const bookingDate = new Date(`${booking.scheduledDate}T${booking.scheduledTime}`)
+    const scheduledTime = booking.scheduledTime?.start || booking.scheduledTime
+    const bookingDate = new Date(`${booking.scheduledDate}T${scheduledTime}`)
     const hoursUntilBooking = (bookingDate - new Date()) / (1000 * 60 * 60)
     
     let cancellationFee = 0
@@ -417,5 +445,182 @@ exports.getBookingStats = async (req, res) => {
   } catch (error) {
     console.error('Get booking stats error:', error)
     sendErrorResponse(res, 'Failed to get booking statistics', 500)
+  }
+}
+
+// @desc    Accept booking (Provider)
+// @route   PATCH /api/bookings/:id/accept
+// @access  Private (Provider only)
+exports.acceptBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+    
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      })
+    }
+
+    // Check if user is the provider for this booking
+    if (booking.provider.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to accept this booking'
+      })
+    }
+
+    // Check if booking is pending
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot accept booking with status: ${booking.status}`
+      })
+    }
+
+    // Update booking
+    booking.status = 'confirmed'
+    booking.providerResponse = {
+      acceptedAt: new Date()
+    }
+    booking._updatedBy = req.user.id
+    await booking.save()
+
+    await booking.populate([
+      { path: 'customer', select: 'firstName lastName email phone' },
+      { path: 'provider', select: 'firstName lastName email phone' },
+      { path: 'service', select: 'title description pricing duration' }
+    ])
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking accepted successfully',
+      data: booking
+    })
+  } catch (error) {
+    console.error('Accept booking error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to accept booking',
+      error: error.message
+    })
+  }
+}
+
+// @desc    Reject booking (Provider)
+// @route   PATCH /api/bookings/:id/reject
+// @access  Private (Provider only)
+exports.rejectBooking = async (req, res) => {
+  try {
+    const { reason } = req.body
+    const booking = await Booking.findById(req.params.id)
+    
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      })
+    }
+
+    // Check if user is the provider for this booking
+    if (booking.provider.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to reject this booking'
+      })
+    }
+
+    // Check if booking is pending
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot reject booking with status: ${booking.status}`
+      })
+    }
+
+    // Update booking
+    booking.status = 'rejected'
+    booking.providerResponse = {
+      rejectedAt: new Date(),
+      rejectionReason: reason || 'No reason provided'
+    }
+    booking._updatedBy = req.user.id
+    await booking.save()
+
+    await booking.populate([
+      { path: 'customer', select: 'firstName lastName email phone' },
+      { path: 'provider', select: 'firstName lastName email phone' },
+      { path: 'service', select: 'title description pricing duration' }
+    ])
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking rejected',
+      data: booking
+    })
+  } catch (error) {
+    console.error('Reject booking error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reject booking',
+      error: error.message
+    })
+  }
+}
+
+// @desc    Complete booking (Provider)
+// @route   PATCH /api/bookings/:id/complete
+// @access  Private (Provider only)
+exports.completeBooking = async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+    
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      })
+    }
+
+    // Check if user is the provider for this booking
+    if (booking.provider.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to complete this booking'
+      })
+    }
+
+    // Check if booking is confirmed or in-progress
+    if (booking.status !== 'confirmed' && booking.status !== 'in-progress') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot complete booking with status: ${booking.status}`
+      })
+    }
+
+    // Update booking
+    booking.status = 'completed'
+    booking.completedAt = new Date()
+    booking._updatedBy = req.user.id
+    await booking.save()
+
+    await booking.populate([
+      { path: 'customer', select: 'firstName lastName email phone' },
+      { path: 'provider', select: 'firstName lastName email phone' },
+      { path: 'service', select: 'title description pricing duration' }
+    ])
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking marked as completed',
+      data: booking
+    })
+  } catch (error) {
+    console.error('Complete booking error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete booking',
+      error: error.message
+    })
   }
 }

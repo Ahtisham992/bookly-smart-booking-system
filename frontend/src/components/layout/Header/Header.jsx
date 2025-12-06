@@ -32,18 +32,34 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
-            <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Home
-            </Link>
+            {!user && (
+              <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors">
+                Home
+              </Link>
+            )}
+            {user && (
+              <Link to={isProvider ? "/provider-dashboard" : "/dashboard"} className="text-gray-600 hover:text-gray-900 transition-colors">
+                Dashboard
+              </Link>
+            )}
             <Link to="/services" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Services
+              {isProvider ? "My Services" : "Services"}
             </Link>
-            <Link to="/providers" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Providers
-            </Link>
-            <Link to="/booking" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Book Now
-            </Link>
+            {!isProvider && (
+              <Link to="/providers" className="text-gray-600 hover:text-gray-900 transition-colors">
+                Providers
+              </Link>
+            )}
+            {user && !isProvider && (
+              <Link to="/my-bookings" className="text-gray-600 hover:text-gray-900 transition-colors">
+                My Bookings
+              </Link>
+            )}
+            {user && isProvider && (
+              <Link to="/my-bookings" className="text-gray-600 hover:text-gray-900 transition-colors">
+                Bookings
+              </Link>
+            )}
           </nav>
 
           {/* Desktop Auth */}
@@ -81,12 +97,12 @@ const Header = () => {
                         {isProvider ? "Provider Dashboard" : "User Dashboard"}
                       </Link>
                       <Link
-                        to="/profile"
+                        to={isProvider ? "/provider/settings" : "/profile"}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         <User className="h-4 w-4 mr-2" />
-                        Profile
+                        {isProvider ? "Profile Settings" : "Profile"}
                       </Link>
                       <button
                         onClick={handleLogout}
@@ -124,10 +140,19 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden border-t py-4">
             <nav className="flex flex-col space-y-2">
-              <Link to="/" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Home</Link>
-              <Link to="/services" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Services</Link>
-              <Link to="/providers" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Providers</Link>
-              <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Book Now</Link>
+              {!user && (
+                <Link to="/" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Home</Link>
+              )}
+              {user && (
+                <Link to={isProvider ? "/provider-dashboard" : "/dashboard"} onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Dashboard</Link>
+              )}
+              <Link to="/services" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">{isProvider ? "My Services" : "Services"}</Link>
+              {!isProvider && (
+                <Link to="/providers" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Providers</Link>
+              )}
+              {user && (
+                <Link to="/my-bookings" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">{isProvider ? "Bookings" : "My Bookings"}</Link>
+              )}
 
               <div className="border-t pt-4 flex flex-col space-y-2">
                 {user ? (

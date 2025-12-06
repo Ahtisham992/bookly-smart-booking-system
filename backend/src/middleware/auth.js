@@ -44,9 +44,16 @@ exports.protect = async (req, res, next) => {
       return sendErrorResponse(res, 'User account has been deactivated', 401)
     }
 
+    console.log('Auth middleware - User authenticated:', {
+      id: user._id,
+      email: user.email,
+      role: user.role
+    })
+
     req.user = user
     next()
   } catch (error) {
+    console.error('Auth middleware error:', error.message)
     return sendErrorResponse(res, 'Not authorized to access this route', 401)
   }
 }

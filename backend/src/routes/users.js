@@ -16,6 +16,18 @@ router
   .route('/')
   .get(authorize('admin'), getUsers)
 
+// Profile routes - current user
+router
+  .route('/profile')
+  .get((req, res, next) => {
+    req.params.id = req.user.id
+    next()
+  }, getUser)
+  .put((req, res, next) => {
+    req.params.id = req.user.id
+    next()
+  }, updateUser)
+
 router
   .route('/:id')
   .get(getUser)

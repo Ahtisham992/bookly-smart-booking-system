@@ -44,6 +44,7 @@ const bookingSchema = new mongoose.Schema({
     enum: [
       'pending',      // waiting for provider confirmation
       'confirmed',    // provider confirmed
+      'rejected',     // provider rejected
       'in-progress',  // service is currently being performed
       'completed',    // service completed
       'cancelled',    // cancelled by customer or provider
@@ -52,6 +53,12 @@ const bookingSchema = new mongoose.Schema({
     ],
     default: 'pending'
   },
+  providerResponse: {
+    acceptedAt: Date,
+    rejectedAt: Date,
+    rejectionReason: String
+  },
+  completedAt: Date,
   location: {
     type: {
       type: String,

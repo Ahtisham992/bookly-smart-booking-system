@@ -26,7 +26,10 @@ exports.requireProvider = (req, res, next) => {
     return sendErrorResponse(res, 'Authentication required', 401)
   }
 
+  console.log('requireProvider check - User role:', req.user.role, 'User ID:', req.user._id || req.user.id)
+
   if (req.user.role !== 'provider') {
+    console.log('Access denied - Expected: provider, Got:', req.user.role)
     return sendErrorResponse(res, 'Provider access required', 403)
   }
 

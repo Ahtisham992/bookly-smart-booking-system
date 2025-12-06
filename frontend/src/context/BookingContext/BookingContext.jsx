@@ -39,12 +39,15 @@ export const BookingProvider = ({ children }) => {
       
       if (response.success) {
         setBookings(response.data || [])
+        return { success: true, data: response.data || [] }
       } else {
         setError(response.error || 'Failed to fetch bookings')
+        return { success: false, error: response.error || 'Failed to fetch bookings' }
       }
     } catch (err) {
       console.error('Fetch bookings error:', err)
       setError('Failed to fetch bookings')
+      return { success: false, error: 'Failed to fetch bookings' }
     } finally {
       setLoading(false)
     }
@@ -74,7 +77,8 @@ export const BookingProvider = ({ children }) => {
     }
   }
 
-  const getUserBookings = async () => {
+  const getUserBookings = async (userId) => {
+    // Just call fetchUserBookings which now returns the result
     return await fetchUserBookings()
   }
 

@@ -10,6 +10,7 @@ import ProtectedRoute from '@components/auth/ProtectedRoute/ProtectedRoute'
 // Pages
 import Home from '@pages/Home/Home'
 import Providers from '@pages/Providers/Providers'
+import ProviderDetail from '@pages/Providers/ProviderDetail'
 import Booking from '@pages/Booking/Booking'
 import Dashboard from '@pages/Dashboard/Dashboard'
 import Profile from '@pages/Profile/Profile'
@@ -22,6 +23,9 @@ import Services from '@pages/Services/Services'
 import ServiceDetail from '@pages/Services/ServiceDetail'
 import AddService from '@pages/Services/AddService'
 import ProviderDashboard from '@pages/Dashboard/ProviderDashboard' // ✅ New Provider Dashboard
+import MyBookings from '@pages/Bookings/MyBookings' // ✅ New My Bookings Page
+import LeaveReview from '@pages/Reviews/LeaveReview' // ✅ Leave Review Page
+import ProviderSettings from '@pages/Providers/ProviderSettings' // ✅ Provider Settings Page
 
 function App() {
   return (
@@ -39,6 +43,7 @@ function App() {
                   <Route path="services/add" element={<AddService />} />
                   <Route path="services/edit/:id" element={<AddService />} />
                   <Route path="providers" element={<Providers />} />
+                  <Route path="providers/:id" element={<ProviderDetail />} />
                   <Route path="booking" element={<Booking />} />
                   <Route path="contact" element={<Contact />} />
                   <Route path="about" element={<About />} />
@@ -71,6 +76,30 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <Profile />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="my-bookings" // ✅ New My Bookings route
+                    element={
+                      <ProtectedRoute>
+                        <MyBookings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="bookings/:bookingId/review" // ✅ Leave Review route
+                    element={
+                      <ProtectedRoute>
+                        <LeaveReview />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="provider/settings" // ✅ Provider Settings route
+                    element={
+                      <ProtectedRoute>
+                        <ProviderSettings />
                       </ProtectedRoute>
                     }
                   />

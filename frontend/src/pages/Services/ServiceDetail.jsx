@@ -1,9 +1,16 @@
 // src/pages/Services/ServiceDetail.jsx
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Calendar, Edit, Trash2, MapPin, Star } from 'lucide-react'
+import { ArrowLeft, Clock, Calendar, Edit, Trash2, MapPin, Star, X, DollarSign } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext/AuthContext'
 import { useServices } from '@/context/ServicesContext/ServicesContext'
+import { bookingService } from '@/services/api'
+import { 
+  generateTimeSlots, 
+  filterPastSlots, 
+  markUnavailableSlots,
+  getProviderWorkingHours 
+} from '@/utils/timeSlots'
 
 const ServiceDetail = () => {
   const { id } = useParams()
@@ -13,8 +20,20 @@ const ServiceDetail = () => {
   const [service, setService] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [bookingData, setBookingData] = useState({
+    date: '',
+    time: '',
+    notes: ''
+  })
+  const [isBooking, setIsBooking] = useState(false)
+  const [timeSlots, setTimeSlots] = useState([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
+  const [selectedSlot, setSelectedSlot] = useState(null)
 
-  const canEdit = user && (user.role === 'admin' || user.role === 'provider')
+  const isProvider = user?.role === 'provider'
+  const isOwner = isProvider && service?.provider?._id === user?._id
+  const canEdit = isOwner || user?.role === 'admin'
 
   useEffect(() => {
     const foundService = getServiceById(id)
@@ -40,7 +59,7 @@ const ServiceDetail = () => {
 
   const handleBookNow = () => {
     if (!user) {
-      navigate('/auth/login', { 
+      navigate('/login', { 
         state: { 
           from: `/services/${id}`,
           message: 'Please log in to book this service'
@@ -49,11 +68,100 @@ const ServiceDetail = () => {
       return
     }
     
-    navigate('/booking', { 
-      state: { 
-        selectedService: service 
+    if (isProvider) {
+      alert('Providers cannot book services')
+      return
+    }
+    
+    setShowBookingModal(true)
+  }
+
+  const handleDateChange = async (selectedDate) => {
+    setBookingData({ ...bookingData, date: selectedDate, time: '' })
+    setSelectedSlot(null)
+    
+    if (!selectedDate || !service) return
+    
+    setLoadingSlots(true)
+    try {
+      const workingHours = getProviderWorkingHours(service.provider)
+      
+      let slots = generateTimeSlots(
+        service.duration,
+        workingHours.start,
+        workingHours.end
+      )
+      
+      slots = filterPastSlots(slots, selectedDate)
+      
+      const providerId = service.provider?._id || service.provider?.id || service.provider
+      const response = await bookingService.getProviderBookings({
+        date: selectedDate,
+        providerId: providerId
+      })
+      
+      if (response.success && response.data) {
+        slots = markUnavailableSlots(slots, response.data)
       }
-    })
+      
+      setTimeSlots(slots)
+    } catch (error) {
+      console.error('Error loading time slots:', error)
+      const workingHours = getProviderWorkingHours(service.provider)
+      let slots = generateTimeSlots(
+        service.duration,
+        workingHours.start,
+        workingHours.end
+      )
+      slots = filterPastSlots(slots, selectedDate)
+      setTimeSlots(slots)
+    }
+    setLoadingSlots(false)
+  }
+
+  const handleSlotSelect = (slot) => {
+    if (!slot.available) return
+    setSelectedSlot(slot)
+    setBookingData({ ...bookingData, time: slot.time })
+  }
+
+  const handleBookingSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (!bookingData.date || !bookingData.time) {
+      alert('Please select date and time slot')
+      return
+    }
+
+    setIsBooking(true)
+    try {
+      const bookingPayload = {
+        serviceId: service._id || service.id,
+        providerId: service.provider?._id || service.provider?.id || service.provider,
+        scheduledDate: bookingData.date,
+        scheduledTime: bookingData.time,
+        notes: bookingData.notes || '',
+        duration: service.duration
+      }
+
+      console.log('Booking payload:', bookingPayload)
+      const response = await bookingService.createBooking(bookingPayload)
+
+      if (response.success) {
+        alert('Booking created successfully!')
+        setShowBookingModal(false)
+        setBookingData({ date: '', time: '', notes: '' })
+        setSelectedSlot(null)
+        setTimeSlots([])
+        navigate('/my-bookings')
+      } else {
+        alert(response.error || 'Failed to create booking')
+      }
+    } catch (error) {
+      console.error('Booking error:', error)
+      alert('Failed to create booking. Please try again.')
+    }
+    setIsBooking(false)
   }
 
   if (loading) {
@@ -112,25 +220,31 @@ const ServiceDetail = () => {
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {/* Service Image */}
           <div className="relative h-64 md:h-80 bg-gray-200">
-            {service.imageUrl ? (
+            {(service.imageUrl || (service.media?.images && service.media.images.length > 0)) ? (
               <img
-                src={service.imageUrl}
+                src={service.imageUrl || service.media?.images[0]}
                 alt={service.title}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.style.display = 'none'
-                  e.target.nextSibling.style.display = 'flex'
+                  e.target.nextElementSibling.style.display = 'flex'
                 }}
               />
-            ) : null}
-            <div className="absolute inset-0 bg-gray-300 flex items-center justify-center text-gray-500">
-              <span>No Image Available</span>
-            </div>
+            ) : (
+              <div className="absolute inset-0 bg-gray-300 flex items-center justify-center text-gray-500">
+                <span>No Image Available</span>
+              </div>
+            )}
+            {(service.imageUrl || (service.media?.images && service.media.images.length > 0)) && (
+              <div className="absolute inset-0 bg-gray-300 items-center justify-center text-gray-500 hidden">
+                <span>No Image Available</span>
+              </div>
+            )}
 
             {/* Category Badge */}
             <div className="absolute top-4 left-4">
               <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                {service.category}
+                {service.category?.name || service.category}
               </span>
             </div>
 
@@ -207,46 +321,99 @@ const ServiceDetail = () => {
                 </div>
               </div>
 
-              {/* Booking Card */}
-              <div className="lg:w-80 mt-6 lg:mt-0">
-                <div className="bg-gray-50 rounded-lg p-6 sticky top-6">
-                  <div className="text-center mb-6">
-                    <div className="text-3xl font-bold text-primary-600 mb-1">
-                      ${service.price}
+              {/* Booking Card - Only for Customers */}
+              {!isProvider && (
+                <div className="lg:w-80 mt-6 lg:mt-0">
+                  <div className="bg-gray-50 rounded-lg p-6 sticky top-6">
+                    <div className="text-center mb-6">
+                      <div className="text-3xl font-bold text-primary-600 mb-1">
+                        ${service.pricing?.amount || service.price}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        per {service.duration} minute session
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      per {service.duration} minute session
-                    </div>
-                  </div>
 
-                  <button
-                    onClick={handleBookNow}
-                    className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 transition-colors mb-4"
-                  >
-                    <Calendar className="w-5 h-5 inline mr-2" />
-                    Book Now
-                  </button>
+                    <button
+                      onClick={handleBookNow}
+                      className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 transition-colors mb-4"
+                    >
+                      <Calendar className="w-5 h-5 inline mr-2" />
+                      Book Now
+                    </button>
 
-                  <div className="space-y-3 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Duration:</span>
-                      <span className="font-medium">{service.duration} min</span>
+                    <div className="space-y-3 text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Duration:</span>
+                        <span className="font-medium">{service.duration} min</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Category:</span>
+                        <span className="font-medium">{service.category?.name || service.category}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Provider:</span>
+                        <span className="font-medium">{service.provider?.firstName} {service.provider?.lastName}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Category:</span>
-                      <span className="font-medium">{service.category}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Availability:</span>
-                      <span className="font-medium text-green-600">Available</span>
-                    </div>
-                  </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 text-center">
-                    Free cancellation up to 24 hours before appointment
+                    <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 text-center">
+                      Free cancellation up to 24 hours before appointment
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Provider Info Card - Only for Providers viewing their own service */}
+              {isOwner && (
+                <div className="lg:w-80 mt-6 lg:mt-0">
+                  <div className="bg-blue-50 rounded-lg p-6 sticky top-6 border-2 border-blue-200">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4">Your Service</h3>
+                    
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Price:</span>
+                        <span className="font-semibold text-gray-900">${service.pricing?.amount || service.price}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Duration:</span>
+                        <span className="font-medium text-gray-900">{service.duration} min</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Category:</span>
+                        <span className="font-medium text-gray-900">{service.category?.name || service.category}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Status:</span>
+                        <span className={`font-medium ${service.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                          {service.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 space-y-2">
+                      <Link
+                        to={`/services/edit/${service.id || service._id}`}
+                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Edit Service
+                      </Link>
+                      <button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="w-full text-red-600 hover:bg-red-50 border border-red-300 py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isDeleting ? 'Deleting...' : 'Delete Service'}
+                      </button>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-blue-200 text-xs text-blue-700 text-center">
+                      This is your service. Customers can book it.
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -261,6 +428,134 @@ const ServiceDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Booking Modal */}
+      {showBookingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-xl font-bold text-gray-900">Book Service</h2>
+              <button
+                onClick={() => setShowBookingModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleBookingSubmit} className="p-6">
+              <div className="mb-4">
+                <h3 className="font-semibold text-gray-900 mb-2">{service.title}</h3>
+                <p className="text-sm text-gray-600">
+                  Provider: {service.provider?.firstName} {service.provider?.lastName}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Duration: {service.duration} minutes • ${service.pricing?.amount || service.price}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Date Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={bookingData.date}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+
+                {/* Time Slots */}
+                {bookingData.date && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Time Slot *
+                    </label>
+                    
+                    {loadingSlots ? (
+                      <div className="text-center py-8">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-600 border-t-transparent"></div>
+                        <p className="text-sm text-gray-600 mt-2">Loading available slots...</p>
+                      </div>
+                    ) : timeSlots.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">No available time slots for this date</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                        {timeSlots.map((slot, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => handleSlotSelect(slot)}
+                            disabled={!slot.available}
+                            className={`
+                              px-3 py-2 rounded-lg text-sm font-medium transition-all
+                              ${selectedSlot?.time === slot.time
+                                ? 'bg-primary-600 text-white ring-2 ring-primary-600 ring-offset-2'
+                                : slot.available
+                                ? 'bg-white border-2 border-gray-300 text-gray-700 hover:border-primary-500 hover:bg-primary-50'
+                                : 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed'
+                              }
+                            `}
+                          >
+                            {slot.display}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {selectedSlot && (
+                      <p className="text-xs text-gray-600 mt-2">
+                        Selected: {selectedSlot.display} ({service.duration} min session)
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Notes Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Additional Notes (Optional)
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={bookingData.notes}
+                    onChange={(e) => setBookingData({ ...bookingData, notes: e.target.value })}
+                    placeholder="Any special requirements or notes..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isBooking}
+                  className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isBooking ? 'Booking...' : 'Confirm Booking'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

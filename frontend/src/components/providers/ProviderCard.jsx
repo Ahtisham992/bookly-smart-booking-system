@@ -17,27 +17,39 @@ const ProviderCard = ({ provider, viewMode = 'grid' }) => {
     ? 'p-4'
     : 'flex-1 ml-4'
 
+  // Get data from multiple possible sources (direct or nested in providerInfo)
+  const imageUrl = provider.profileImage || provider.imageUrl || provider.providerInfo?.profileImage
+  const category = provider.category || provider.providerInfo?.category || 'Uncategorized'
+  const rating = provider.rating || provider.providerInfo?.rating || 0
+  const reviewCount = provider.reviewCount || provider.providerInfo?.reviewCount || 0
+  const location = provider.location || provider.providerInfo?.location || 'Location not set'
+  const experience = provider.experience || provider.providerInfo?.experience || 0
+  const bio = provider.bio || provider.providerInfo?.bio || 'No bio available'
+  const specialties = provider.specialties || provider.providerInfo?.specialties || []
+  const priceRange = provider.priceRange || provider.providerInfo?.priceRange || 'Contact for pricing'
+  const verified = provider.verified || provider.providerInfo?.verified || false
+
   return (
     <div className={cardClasses}>
       {/* Provider Image */}
       <div className={isGridView ? '' : 'flex-shrink-0'}>
-        {provider.imageUrl ? (
+        {imageUrl ? (
           <img
-            src={provider.imageUrl}
+            src={imageUrl}
             alt={`${provider.firstName} ${provider.lastName}`}
             className={imageClasses}
             onError={(e) => {
               e.target.style.display = 'none'
-              e.target.nextSibling.style.display = 'flex'
+              e.target.nextElementSibling.style.display = 'flex'
             }}
           />
         ) : null}
         <div 
           className={`${imageClasses} bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-xl ${
-            provider.imageUrl ? 'hidden' : ''
+            imageUrl ? 'hidden' : ''
           }`}
         >
-          {provider.firstName[0]}{provider.lastName[0]}
+          {provider.firstName?.[0]}{provider.lastName?.[0]}
         </div>
       </div>
 
@@ -50,61 +62,67 @@ const ProviderCard = ({ provider, viewMode = 'grid' }) => {
               <h3 className="font-semibold text-gray-900 text-lg">
                 {provider.firstName} {provider.lastName}
               </h3>
-              {provider.verified && (
+              {verified && (
                 <CheckCircle className="w-5 h-5 text-green-500" title="Verified Provider" />
               )}
             </div>
 
             {/* Category */}
             <p className="text-primary-600 font-medium text-sm mb-2">
-              {provider.category}
+              {category}
             </p>
 
             {/* Rating and Reviews */}
             <div className="flex items-center gap-1 mb-2">
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="font-medium text-gray-900">{provider.rating}</span>
-              <span className="text-gray-500 text-sm">({provider.reviewCount} reviews)</span>
+              <span className="font-medium text-gray-900">{rating.toFixed(1)}</span>
+              <span className="text-gray-500 text-sm">({reviewCount} reviews)</span>
             </div>
 
             {/* Location and Experience */}
             <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
               <div className="flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
-                <span>{provider.location}</span>
+                <span>{location}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                <span>{provider.experience}+ years</span>
-              </div>
+              {experience > 0 && (
+                <div className="flex items-center gap-1">
+                  <Clock className="w-4 h-4" />
+                  <span>{experience}+ years</span>
+                </div>
+              )}
             </div>
 
             {/* Bio (truncated) */}
-            <p className={`text-gray-600 text-sm ${isGridView ? 'line-clamp-2' : 'line-clamp-1'} mb-3`}>
-              {provider.bio}
-            </p>
+            {bio && (
+              <p className={`text-gray-600 text-sm ${isGridView ? 'line-clamp-2' : 'line-clamp-1'} mb-3`}>
+                {bio}
+              </p>
+            )}
 
             {/* Specialties */}
-            <div className="flex flex-wrap gap-1 mb-3">
-              {provider.specialties?.slice(0, isGridView ? 3 : 2).map((specialty, index) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                >
-                  {specialty}
-                </span>
-              ))}
-              {provider.specialties?.length > (isGridView ? 3 : 2) && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                  +{provider.specialties.length - (isGridView ? 3 : 2)} more
-                </span>
-              )}
-            </div>
+            {specialties.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-3">
+                {specialties.slice(0, isGridView ? 3 : 2).map((specialty, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                  >
+                    {specialty}
+                  </span>
+                ))}
+                {specialties.length > (isGridView ? 3 : 2) && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                    +{specialties.length - (isGridView ? 3 : 2)} more
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Price Range */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-900">
-                {provider.priceRange}
+                {priceRange}
               </span>
               {!isGridView && (
                 <Link
