@@ -1,5 +1,6 @@
 // src/context/ProvidersContext/ProvidersContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react'
+import { providerService } from '@/services/api'
 
 const ProvidersContext = createContext(null)
 
@@ -14,118 +15,30 @@ export const useProviders = () => {
 export const ProvidersProvider = ({ children }) => {
   const [providers, setProviders] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Initialize with sample data on first load
+  // Fetch providers from API on mount
   useEffect(() => {
-    const storedProviders = localStorage.getItem('providers')
-    if (storedProviders) {
-      try {
-        setProviders(JSON.parse(storedProviders))
-      } catch (error) {
-        console.error('Error parsing stored providers:', error)
-        initializeSampleData()
-      }
-    } else {
-      initializeSampleData()
-    }
+    fetchProviders()
   }, [])
 
-  const initializeSampleData = () => {
-    const sampleProviders = [
-      {
-        id: '1',
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        email: 'sarah.johnson@example.com',
-        phone: '+1 (555) 123-4567',
-        bio: 'Professional hair stylist with over 10 years of experience in cutting-edge hair design and color techniques.',
-        specialties: ['Hair Cutting', 'Hair Coloring', 'Hair Styling'],
-        category: 'Hair & Beauty',
-        rating: 4.9,
-        reviewCount: 127,
-        imageUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b5e5?w=400',
-        location: 'New York, NY',
-        experience: 10,
-        verified: true,
-        availability: 'Mon-Fri: 9AM-6PM, Sat: 10AM-4PM',
-        priceRange: '$45 - $150',
-        services: ['1'], // References to service IDs
-        createdAt: new Date().toISOString(),
-        isActive: true
-      },
-      {
-        id: '2',
-        firstName: 'Dr. Michael',
-        lastName: 'Chen',
-        email: 'dr.chen@example.com',
-        phone: '+1 (555) 987-6543',
-        bio: 'Board-certified dentist specializing in preventive care and cosmetic dentistry with a gentle approach.',
-        specialties: ['General Dentistry', 'Cosmetic Dentistry', 'Preventive Care'],
-        category: 'Healthcare',
-        rating: 4.8,
-        reviewCount: 89,
-        imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400',
-        location: 'Los Angeles, CA',
-        experience: 8,
-        verified: true,
-        availability: 'Mon-Thu: 8AM-5PM, Fri: 8AM-2PM',
-        priceRange: '$120 - $300',
-        services: ['2'],
-        createdAt: new Date().toISOString(),
-        isActive: true
-      },
-      {
-        id: '3',
-        firstName: 'Alex',
-        lastName: 'Rodriguez',
-        email: 'alex.rodriguez@example.com',
-        phone: '+1 (555) 456-7890',
-        bio: 'Certified personal trainer and fitness coach helping clients achieve their health and fitness goals.',
-        specialties: ['Weight Training', 'Cardio', 'Nutrition Coaching'],
-        category: 'Fitness',
-        rating: 4.7,
-        reviewCount: 95,
-        imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400',
-        location: 'Miami, FL',
-        experience: 6,
-        verified: true,
-        availability: 'Mon-Sun: 6AM-8PM',
-        priceRange: '$60 - $120',
-        services: ['3'],
-        createdAt: new Date().toISOString(),
-        isActive: true
-      },
-      {
-        id: '4',
-        firstName: 'Lisa',
-        lastName: 'Thompson',
-        email: 'lisa.thompson@example.com',
-        phone: '+1 (555) 321-0987',
-        bio: 'Licensed massage therapist specializing in deep tissue and relaxation massage techniques.',
-        specialties: ['Deep Tissue Massage', 'Swedish Massage', 'Sports Massage'],
-        category: 'Wellness',
-        rating: 4.9,
-        reviewCount: 156,
-        imageUrl: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400',
-        location: 'Seattle, WA',
-        experience: 12,
-        verified: true,
-        availability: 'Tue-Sat: 10AM-7PM',
-        priceRange: '$80 - $140',
-        services: ['4'],
-        createdAt: new Date().toISOString(),
-        isActive: true
+  const fetchProviders = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await providerService.getAllProviders()
+      
+      if (response.success) {
+        setProviders(response.data || [])
+      } else {
+        setError(response.error || 'Failed to fetch providers')
       }
-    ]
-    
-    setProviders(sampleProviders)
-    localStorage.setItem('providers', JSON.stringify(sampleProviders))
-  }
-
-  // Save to localStorage whenever providers change
-  const saveToStorage = (updatedProviders) => {
-    localStorage.setItem('providers', JSON.stringify(updatedProviders))
-    setProviders(updatedProviders)
+    } catch (err) {
+      console.error('Fetch providers error:', err)
+      setError('Failed to fetch providers')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const addProvider = async (providerData) => {
@@ -147,7 +60,7 @@ export const ProvidersProvider = ({ children }) => {
       }
       
       const updatedProviders = [...providers, newProvider]
-      saveToStorage(updatedProviders)
+      setProviders(updatedProviders)
       
       return { success: true, provider: newProvider }
     } catch (error) {
@@ -171,7 +84,7 @@ export const ProvidersProvider = ({ children }) => {
           : provider
       )
       
-      saveToStorage(updatedProviders)
+      setProviders(updatedProviders)
       
       const updatedProvider = updatedProviders.find(p => p.id === providerId)
       return { success: true, provider: updatedProvider }
@@ -191,7 +104,7 @@ export const ProvidersProvider = ({ children }) => {
       await new Promise(resolve => setTimeout(resolve, 500))
       
       const updatedProviders = providers.filter(provider => provider.id !== providerId)
-      saveToStorage(updatedProviders)
+      setProviders(updatedProviders)
       
       return { success: true }
     } catch (error) {
@@ -203,38 +116,37 @@ export const ProvidersProvider = ({ children }) => {
   }
 
   const getProviderById = (providerId) => {
-    return providers.find(provider => provider.id === providerId)
+    return providers.find(provider => provider._id === providerId || provider.id === providerId)
   }
 
   const getProvidersByCategory = (category) => {
-    return providers.filter(provider => provider.category === category && provider.isActive)
+    return providers.filter(provider => 
+      provider.providerInfo?.specialties?.includes(category) && 
+      provider.isActive
+    )
   }
 
   const getActiveProviders = () => {
-    return providers.filter(provider => provider.isActive)
-  }
-
-  const getVerifiedProviders = () => {
-    return providers.filter(provider => provider.isActive && provider.verified)
+    return providers.filter(provider => provider.isActive && provider.role === 'provider')
   }
 
   const searchProviders = (query) => {
     const lowercaseQuery = query.toLowerCase()
     return providers.filter(provider =>
-      provider.isActive && (
-        provider.firstName.toLowerCase().includes(lowercaseQuery) ||
-        provider.lastName.toLowerCase().includes(lowercaseQuery) ||
-        provider.bio.toLowerCase().includes(lowercaseQuery) ||
-        provider.specialties.some(specialty => specialty.toLowerCase().includes(lowercaseQuery)) ||
-        provider.category.toLowerCase().includes(lowercaseQuery) ||
-        provider.location.toLowerCase().includes(lowercaseQuery)
+      provider.isActive && provider.role === 'provider' && (
+        provider.firstName?.toLowerCase().includes(lowercaseQuery) ||
+        provider.lastName?.toLowerCase().includes(lowercaseQuery) ||
+        provider.providerInfo?.bio?.toLowerCase().includes(lowercaseQuery) ||
+        provider.providerInfo?.specialties?.some(s => s.toLowerCase().includes(lowercaseQuery))
       )
     )
   }
 
   const getCategories = () => {
-    const categories = [...new Set(providers.map(provider => provider.category))]
-    return categories.filter(Boolean)
+    const categories = providers
+      .filter(p => p.providerInfo?.specialties)
+      .flatMap(p => p.providerInfo.specialties)
+    return [...new Set(categories)].filter(Boolean)
   }
 
   const getTopRatedProviders = (limit = 5) => {
@@ -247,13 +159,14 @@ export const ProvidersProvider = ({ children }) => {
   const value = {
     providers,
     loading,
+    error,
+    fetchProviders,
     addProvider,
     updateProvider,
     deleteProvider,
     getProviderById,
     getProvidersByCategory,
     getActiveProviders,
-    getVerifiedProviders,
     searchProviders,
     getCategories,
     getTopRatedProviders

@@ -1,11 +1,14 @@
 // src/components/Services/ServiceForm.jsx
 import { useState, useEffect } from 'react'
 import { useServices } from '@/context/ServicesContext/ServicesContext'
+import { categoryService } from '@/services/api'
 
 const ServiceForm = ({ service, onSubmit, onCancel, isEditing = false }) => {
   const { getCategories } = useServices()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+  const [categories, setCategories] = useState([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
 
   const [formData, setFormData] = useState({
     title: '',
@@ -16,16 +19,42 @@ const ServiceForm = ({ service, onSubmit, onCancel, isEditing = false }) => {
     imageUrl: ''
   })
 
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true)
+        console.log('Fetching categories...')
+        const response = await categoryService.getAllCategories()
+        console.log('Categories response:', response)
+        
+        if (response.success && response.data) {
+          console.log('Categories loaded:', response.data.length)
+          setCategories(response.data)
+        } else {
+          console.error('Failed to load categories:', response.error)
+          setErrors(prev => ({ ...prev, category: 'Failed to load categories. Please refresh the page.' }))
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error)
+        setErrors(prev => ({ ...prev, category: 'Failed to load categories. Please refresh the page.' }))
+      } finally {
+        setLoadingCategories(false)
+      }
+    }
+    fetchCategories()
+  }, [])
+
   // Pre-fill form if editing
   useEffect(() => {
     if (service) {
       setFormData({
         title: service.title || '',
         description: service.description || '',
-        price: service.price?.toString() || '',
+        price: service.pricing?.amount?.toString() || service.price?.toString() || '',
         duration: service.duration?.toString() || '',
-        category: service.category || '',
-        imageUrl: service.imageUrl || ''
+        category: service.category?._id || service.category || '',
+        imageUrl: service.media?.images?.[0] || service.imageUrl || ''
       })
     }
   }, [service])
@@ -69,10 +98,16 @@ const ServiceForm = ({ service, onSubmit, onCancel, isEditing = false }) => {
     const serviceData = {
       title: formData.title.trim(),
       description: formData.description.trim(),
-      price: parseFloat(formData.price),
+      pricing: {
+        type: 'fixed',
+        amount: parseFloat(formData.price),
+        currency: 'USD'
+      },
       duration: parseInt(formData.duration),
       category: formData.category.trim(),
-      imageUrl: formData.imageUrl.trim() || null
+      media: {
+        images: formData.imageUrl.trim() ? [formData.imageUrl.trim()] : []
+      }
     }
 
     try {
@@ -100,20 +135,15 @@ const ServiceForm = ({ service, onSubmit, onCancel, isEditing = false }) => {
     }
   }
 
-  const existingCategories = getCategories()
-  const commonCategories = [
-    'Hair & Beauty',
-    'Healthcare',
-    'Fitness',
-    'Wellness',
-    'Education',
-    'Technology',
-    'Consulting',
-    'Home Services'
-  ]
-
-  // Combine existing and common categories, remove duplicates
-  const allCategories = [...new Set([...existingCategories, ...commonCategories])]
+  // Show loading if categories are being fetched
+  if (loadingCategories) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <span className="ml-3 text-gray-600">Loading categories...</span>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -212,25 +242,27 @@ const ServiceForm = ({ service, onSubmit, onCancel, isEditing = false }) => {
         <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
           Category *
         </label>
-        <input
-          type="text"
+        <select
           id="category"
           name="category"
-          list="categories"
           value={formData.category}
           onChange={handleChange}
           className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
             errors.category ? 'border-red-300' : 'border-gray-300'
           }`}
-          placeholder="Select or type category"
-        />
-        <datalist id="categories">
-          {allCategories.map((category, index) => (
-            <option key={index} value={category} />
+        >
+          <option value="">Select a category</option>
+          {categories.map((category) => (
+            <option key={category._id} value={category._id}>
+              {category.name}
+            </option>
           ))}
-        </datalist>
+        </select>
         {errors.category && (
           <p className="mt-1 text-sm text-red-600">{errors.category}</p>
+        )}
+        {categories.length === 0 && (
+          <p className="mt-1 text-sm text-yellow-600">No categories available. Please contact admin.</p>
         )}
       </div>
 

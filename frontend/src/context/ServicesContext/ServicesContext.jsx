@@ -1,5 +1,6 @@
 // src/context/ServicesContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react'
+import { serviceService } from '@/services/api'
 
 const ServicesContext = createContext(null)
 
@@ -14,101 +15,52 @@ export const useServices = () => {
 export const ServicesProvider = ({ children }) => {
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
-  // Initialize with sample data on first load
+  // Fetch services from API on mount
   useEffect(() => {
-    const storedServices = localStorage.getItem('services')
-    if (storedServices) {
-      try {
-        setServices(JSON.parse(storedServices))
-      } catch (error) {
-        console.error('Error parsing stored services:', error)
-        initializeSampleData()
-      }
-    } else {
-      initializeSampleData()
-    }
+    fetchServices()
   }, [])
 
-  const initializeSampleData = () => {
-    const sampleServices = [
-      {
-        id: '1',
-        title: 'Haircut & Styling',
-        description: 'Professional haircut and styling service with expert stylists.',
-        price: 45,
-        duration: 60,
-        category: 'Hair & Beauty',
-        imageUrl: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400',
-        createdAt: new Date().toISOString(),
-        isActive: true
-      },
-      {
-        id: '2',
-        title: 'Dental Cleaning',
-        description: 'Complete dental cleaning and oral health checkup.',
-        price: 120,
-        duration: 45,
-        category: 'Healthcare',
-        imageUrl: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=400',
-        createdAt: new Date().toISOString(),
-        isActive: true
-      },
-      {
-        id: '3',
-        title: 'Personal Training',
-        description: '1-on-1 personal training session with certified trainer.',
-        price: 80,
-        duration: 60,
-        category: 'Fitness',
-        imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400',
-        createdAt: new Date().toISOString(),
-        isActive: true
-      },
-      {
-        id: '4',
-        title: 'Massage Therapy',
-        description: 'Relaxing full-body massage therapy session.',
-        price: 90,
-        duration: 90,
-        category: 'Wellness',
-        imageUrl: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=400',
-        createdAt: new Date().toISOString(),
-        isActive: true
+  const fetchServices = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await serviceService.getAllServices()
+      
+      if (response.success) {
+        setServices(response.data || [])
+      } else {
+        setError(response.error || 'Failed to fetch services')
       }
-    ]
-    
-    setServices(sampleServices)
-    localStorage.setItem('services', JSON.stringify(sampleServices))
-  }
-
-  // Save to localStorage whenever services change
-  const saveToStorage = (updatedServices) => {
-    localStorage.setItem('services', JSON.stringify(updatedServices))
-    setServices(updatedServices)
+    } catch (err) {
+      console.error('Fetch services error:', err)
+      setError('Failed to fetch services')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const addService = async (serviceData) => {
     try {
       setLoading(true)
+      setError(null)
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const response = await serviceService.createService(serviceData)
       
-      const newService = {
-        id: Date.now().toString(),
-        ...serviceData,
-        createdAt: new Date().toISOString(),
-        isActive: true
+      if (response.success) {
+        // Refresh services list
+        await fetchServices()
+        return { success: true, service: response.data }
+      } else {
+        setError(response.error)
+        return { success: false, error: response.error }
       }
-      
-      const updatedServices = [...services, newService]
-      saveToStorage(updatedServices)
-      
-      return { success: true, service: newService }
     } catch (error) {
       console.error('Add service error:', error)
-      return { success: false, error: 'Failed to add service' }
+      const errorMsg = 'Failed to add service'
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
     } finally {
       setLoading(false)
     }
@@ -117,23 +69,23 @@ export const ServicesProvider = ({ children }) => {
   const updateService = async (serviceId, serviceData) => {
     try {
       setLoading(true)
+      setError(null)
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const response = await serviceService.updateService(serviceId, serviceData)
       
-      const updatedServices = services.map(service =>
-        service.id === serviceId
-          ? { ...service, ...serviceData, updatedAt: new Date().toISOString() }
-          : service
-      )
-      
-      saveToStorage(updatedServices)
-      
-      const updatedService = updatedServices.find(s => s.id === serviceId)
-      return { success: true, service: updatedService }
+      if (response.success) {
+        // Refresh services list
+        await fetchServices()
+        return { success: true, service: response.data }
+      } else {
+        setError(response.error)
+        return { success: false, error: response.error }
+      }
     } catch (error) {
       console.error('Update service error:', error)
-      return { success: false, error: 'Failed to update service' }
+      const errorMsg = 'Failed to update service'
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
     } finally {
       setLoading(false)
     }
@@ -142,53 +94,66 @@ export const ServicesProvider = ({ children }) => {
   const deleteService = async (serviceId) => {
     try {
       setLoading(true)
+      setError(null)
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const response = await serviceService.deleteService(serviceId)
       
-      const updatedServices = services.filter(service => service.id !== serviceId)
-      saveToStorage(updatedServices)
-      
-      return { success: true }
+      if (response.success) {
+        // Refresh services list
+        await fetchServices()
+        return { success: true }
+      } else {
+        setError(response.error)
+        return { success: false, error: response.error }
+      }
     } catch (error) {
       console.error('Delete service error:', error)
-      return { success: false, error: 'Failed to delete service' }
+      const errorMsg = 'Failed to delete service'
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
     } finally {
       setLoading(false)
     }
   }
 
   const getServiceById = (serviceId) => {
-    return services.find(service => service.id === serviceId)
+    return services.find(service => service._id === serviceId || service.id === serviceId)
   }
 
-  const getServicesByCategory = (category) => {
-    return services.filter(service => service.category === category && service.isActive)
+  const getServicesByCategory = (categoryId) => {
+    return services.filter(service => 
+      (service.category?._id === categoryId || service.category === categoryId) && 
+      service.isActive
+    )
   }
 
   const getActiveServices = () => {
-    return services.filter(service => service.isActive)
+    return services.filter(service => service.isActive && service.isApproved)
   }
 
   const searchServices = (query) => {
     const lowercaseQuery = query.toLowerCase()
     return services.filter(service =>
-      service.isActive && (
-        service.title.toLowerCase().includes(lowercaseQuery) ||
-        service.description.toLowerCase().includes(lowercaseQuery) ||
-        service.category.toLowerCase().includes(lowercaseQuery)
+      service.isActive && service.isApproved && (
+        service.title?.toLowerCase().includes(lowercaseQuery) ||
+        service.description?.toLowerCase().includes(lowercaseQuery) ||
+        service.category?.name?.toLowerCase().includes(lowercaseQuery)
       )
     )
   }
 
   const getCategories = () => {
-    const categories = [...new Set(services.map(service => service.category))]
+    const categories = [...new Set(services.map(service => 
+      service.category?.name || service.category
+    ))]
     return categories.filter(Boolean)
   }
 
   const value = {
     services,
     loading,
+    error,
+    fetchServices,
     addService,
     updateService,
     deleteService,

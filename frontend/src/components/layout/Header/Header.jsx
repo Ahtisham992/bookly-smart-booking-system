@@ -1,6 +1,6 @@
-// src/components/layout/Header/Header.jsx (Updated with Auth)
+// src/components/layout/Header/Header.jsx (Updated with Provider Dashboard)
 import { Link, useNavigate } from 'react-router-dom'
-import { Calendar, Menu, X, User, LogOut } from 'lucide-react'
+import { Calendar, Menu, X, User, LogOut, LayoutDashboard } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../../context/AuthContext/AuthContext'
 
@@ -15,6 +15,8 @@ const Header = () => {
     navigate('/')
     setIsUserMenuOpen(false)
   }
+
+  const isProvider = user?.role === 'provider' // ✅ check role
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -62,7 +64,7 @@ const Header = () => {
 
                 {/* User Dropdown Menu */}
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                     <div className="py-1">
                       <div className="px-4 py-2 border-b border-gray-100">
                         <p className="text-sm font-medium text-gray-900">
@@ -71,12 +73,12 @@ const Header = () => {
                         <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
                       <Link
-                        to="/dashboard"
+                        to={isProvider ? "/provider-dashboard" : "/dashboard"}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
-                        <User className="h-4 w-4 mr-2" />
-                        Dashboard
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        {isProvider ? "Provider Dashboard" : "User Dashboard"}
                       </Link>
                       <Link
                         to="/profile"
@@ -122,84 +124,39 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden border-t py-4">
             <nav className="flex flex-col space-y-2">
-              <Link 
-                to="/" 
-                className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
-              <Link 
-                to="/services" 
-                className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Services
-              </Link>
-              <Link 
-                to="/providers" 
-                className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Providers
-              </Link>
-              <Link 
-                to="/booking" 
-                className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Book Now
-              </Link>
-              
+              <Link to="/" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Home</Link>
+              <Link to="/services" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Services</Link>
+              <Link to="/providers" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Providers</Link>
+              <Link to="/booking" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Book Now</Link>
+
               <div className="border-t pt-4 flex flex-col space-y-2">
                 {user ? (
                   <>
                     <div className="py-2">
-                      <p className="text-sm font-medium text-gray-900">
-                        {user.firstName} {user.lastName}
-                      </p>
+                      <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
                       <p className="text-sm text-gray-500">{user.email}</p>
                     </div>
                     <Link 
-                      to="/dashboard" 
-                      className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                      onClick={() => setIsMenuOpen(false)}
+                      to={isProvider ? "/provider-dashboard" : "/dashboard"} 
+                      onClick={() => setIsMenuOpen(false)} 
+                      className="py-2 text-gray-600 hover:text-gray-900"
                     >
-                      Dashboard
+                      {isProvider ? "Provider Dashboard" : "User Dashboard"}
                     </Link>
-                    <Link 
-                      to="/profile" 
-                      className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
+                    <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">
                       Profile
                     </Link>
                     <button
-                      onClick={() => {
-                        handleLogout()
-                        setIsMenuOpen(false)
-                      }}
-                      className="py-2 text-left text-red-600 hover:text-red-700 transition-colors"
+                      onClick={() => { handleLogout(); setIsMenuOpen(false) }}
+                      className="py-2 text-left text-red-600 hover:text-red-700"
                     >
                       Sign Out
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link 
-                      to="/login" 
-                      className="py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link 
-                      to="/register" 
-                      className="btn-primary w-fit"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Get Started
-                    </Link>
+                    <Link to="/login" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Sign In</Link>
+                    <Link to="/register" onClick={() => setIsMenuOpen(false)} className="btn-primary w-fit">Get Started</Link>
                   </>
                 )}
               </div>
@@ -210,10 +167,7 @@ const Header = () => {
 
       {/* Click outside to close user menu */}
       {isUserMenuOpen && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setIsUserMenuOpen(false)}
-        />
+        <div className="fixed inset-0 z-10" onClick={() => setIsUserMenuOpen(false)} />
       )}
     </header>
   )

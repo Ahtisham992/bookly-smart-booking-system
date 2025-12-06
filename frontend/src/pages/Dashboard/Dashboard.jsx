@@ -1,83 +1,88 @@
-// src/pages/Dashboard/Dashboard.jsx - Shows actual user data
-import { useState } from 'react'
+// src/pages/Dashboard/Dashboard.jsx - Updated for backend auth integration
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Clock, Users, TrendingUp, Plus, Search, Filter, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext/AuthContext'
+import { useBooking } from '@/context/BookingContext/BookingContext'
 
 const Dashboard = () => {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
+  const { bookings, loading, getUpcomingBookings, getBookingsByStatus } = useBooking()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [upcomingAppointments, setUpcomingAppointments] = useState([])
 
-  // Mock data - this will come from your API later
+  // Fetch real booking data
+  useEffect(() => {
+    if (bookings && bookings.length > 0) {
+      const upcoming = getUpcomingBookings()
+      setUpcomingAppointments(upcoming)
+    }
+  }, [bookings])
+
+  // If user is not authenticated or loading, show loading
+  if (!isAuthenticated || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Calculate real stats from bookings
+  const upcomingCount = getUpcomingBookings().length
+  const thisMonthBookings = bookings.filter(b => {
+    const bookingDate = new Date(b.scheduledDate)
+    const now = new Date()
+    return bookingDate.getMonth() === now.getMonth() && 
+           bookingDate.getFullYear() === now.getFullYear()
+  }).length
+  const completedBookings = getBookingsByStatus('completed').length
+  const totalSpent = bookings
+    .filter(b => b.status === 'completed')
+    .reduce((sum, b) => sum + (b.pricing?.totalAmount || 0), 0)
+
   const stats = [
     {
       name: 'Upcoming Appointments',
-      value: '3',
+      value: upcomingCount.toString(),
       icon: Calendar,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100'
     },
     {
       name: 'This Month',
-      value: '12',
+      value: thisMonthBookings.toString(),
       icon: Clock,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
     },
     {
-      name: 'Favorite Providers',
-      value: '5',
+      name: 'Completed',
+      value: completedBookings.toString(),
       icon: Users,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
     },
     {
-      name: 'Savings',
-      value: '$240',
+      name: 'Total Spent',
+      value: `$${totalSpent.toFixed(0)}`,
       icon: TrendingUp,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100'
     }
   ]
 
-  const upcomingAppointments = [
-    {
-      id: 1,
-      service: 'Dental Checkup',
-      provider: 'Dr. Sarah Johnson',
-      date: '2025-09-15',
-      time: '10:00 AM',
-      status: 'confirmed',
-      location: 'Downtown Medical Center',
-      price: 120
-    },
-    {
-      id: 2,
-      service: 'Hair Cut',
-      provider: 'Mike\'s Salon',
-      date: '2025-09-16',
-      time: '2:30 PM',
-      status: 'pending',
-      location: 'City Center Mall',
-      price: 45
-    },
-    {
-      id: 3,
-      service: 'Yoga Class',
-      provider: 'Zen Wellness',
-      date: '2025-09-18',
-      time: '6:00 PM',
-      status: 'confirmed',
-      location: 'Wellness Studio',
-      price: 25
-    }
-  ]
-
   // Filter appointments based on search and status
   const filteredAppointments = upcomingAppointments.filter(appointment => {
-    const matchesSearch = appointment.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.provider.toLowerCase().includes(searchTerm.toLowerCase())
+    const serviceName = appointment.service?.title || ''
+    const providerName = `${appointment.provider?.firstName || ''} ${appointment.provider?.lastName || ''}`.trim()
+    
+    const matchesSearch = serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         providerName.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || appointment.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -171,12 +176,12 @@ const Dashboard = () => {
             <div className="divide-y divide-gray-200">
               {filteredAppointments.length > 0 ? (
                 filteredAppointments.map((appointment) => (
-                  <div key={appointment.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div key={appointment._id || appointment.id} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-start justify-between mb-2">
                           <h3 className="text-lg font-medium text-gray-900">
-                            {appointment.service}
+                            {appointment.service?.title || 'Service'}
                           </h3>
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(appointment.status)}`}>
                             {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -184,17 +189,21 @@ const Dashboard = () => {
                         </div>
                         
                         <div className="space-y-1 text-sm text-gray-600">
-                          <p className="font-medium">{appointment.provider}</p>
+                          <p className="font-medium">
+                            {appointment.provider?.firstName} {appointment.provider?.lastName}
+                          </p>
                           <p className="flex items-center">
                             <Calendar className="h-4 w-4 mr-1" />
-                            {formatDate(appointment.date)} at {appointment.time}
+                            {formatDate(appointment.scheduledDate)} at {appointment.scheduledTime?.start || appointment.scheduledTime}
                           </p>
-                          <p>{appointment.location}</p>
+                          <p>{appointment.location?.address || appointment.location?.type}</p>
                         </div>
                       </div>
                       
                       <div className="ml-4 text-right">
-                        <p className="text-lg font-semibold text-gray-900">${appointment.price}</p>
+                        <p className="text-lg font-semibold text-gray-900">
+                          ${appointment.pricing?.totalAmount || 0}
+                        </p>
                         <button className="mt-2 text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center">
                           View Details
                           <ChevronRight className="h-4 w-4 ml-1" />
@@ -206,7 +215,11 @@ const Dashboard = () => {
               ) : (
                 <div className="p-8 text-center">
                   <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No appointments found matching your criteria</p>
+                  <p className="text-gray-500">
+                    {bookings.length === 0 
+                      ? 'No bookings yet. Book your first appointment!' 
+                      : 'No appointments found matching your criteria'}
+                  </p>
                 </div>
               )}
             </div>
@@ -261,14 +274,14 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* User Profile Summary - Shows actual user data */}
+          {/* User Profile Summary - Shows actual user data from backend */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile</h2>
             <div className="space-y-3">
               <div className="flex items-center">
                 <div className="h-12 w-12 bg-primary-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-lg">
-                    {user?.firstName?.[0] || 'U'}{user?.lastName?.[0] || 'U'}
+                    {user?.firstName?.[0] || 'U'}{user?.lastName?.[0] || ''}
                   </span>
                 </div>
                 <div className="ml-3">
@@ -282,11 +295,11 @@ const Dashboard = () => {
                     </span>
                     {user?.isVerified ? (
                       <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                        Verified
+                        ✓ Verified
                       </span>
                     ) : (
                       <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-                        Unverified
+                        ⚠ Unverified
                       </span>
                     )}
                   </div>

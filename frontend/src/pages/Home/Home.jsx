@@ -1,7 +1,18 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Calendar, Clock, Users, Star, ArrowRight, CheckCircle, Zap, Shield } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext/AuthContext'
 
 const Home = () => {
+  const { user, isAuthenticated } = useAuth()
+
+  // Redirect to appropriate dashboard if logged in
+  if (isAuthenticated && user) {
+    if (user.role === 'provider') {
+      return <Navigate to="/provider-dashboard" replace />
+    }
+    return <Navigate to="/dashboard" replace />
+  }
+
   return (
     <div className="bg-white">
       {/* Hero Section */}

@@ -1,11 +1,10 @@
-
-// src/pages/Profile/Profile.jsx - Complete profile page
+// src/pages/Profile/Profile.jsx - Updated for backend integration
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext/AuthContext'
 import { User, Mail, Phone, Calendar, Shield, Bell, Globe, Save, Eye, EyeOff } from 'lucide-react'
 
 const Profile = () => {
-    const { user, updateUser } = useAuth()
+    const { user, updateUser, updatePassword } = useAuth()
     const [isEditing, setIsEditing] = useState(false)
     const [showChangePassword, setShowChangePassword] = useState(false)
     const [formData, setFormData] = useState({
@@ -29,6 +28,7 @@ const Profile = () => {
     const [errors, setErrors] = useState({})
     const [successMessage, setSuccessMessage] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [passwordLoading, setPasswordLoading] = useState(false)
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -36,6 +36,9 @@ const Profile = () => {
         // Clear errors when user starts typing
         if (errors[name]) {
             setErrors(prev => ({ ...prev, [name]: '' }))
+        }
+        if (errors.submit) {
+            setErrors(prev => ({ ...prev, submit: '' }))
         }
     }
 
@@ -60,27 +63,30 @@ const Profile = () => {
             newErrors.lastName = 'Last name is required'
         }
 
-        if (!formData.email) {
+        if (!formData.email.trim()) {
             newErrors.email = 'Email is required'
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = 'Please enter a valid email'
+            newErrors.email = 'Please enter a valid email address'
         }
 
-        // Password validation only if user wants to change password
-        if (showChangePassword) {
-            if (!formData.currentPassword) {
-                newErrors.currentPassword = 'Current password is required'
-            }
+        return newErrors
+    }
 
-            if (!formData.newPassword) {
-                newErrors.newPassword = 'New password is required'
-            } else if (formData.newPassword.length < 6) {
-                newErrors.newPassword = 'Password must be at least 6 characters'
-            }
+    const validatePasswordForm = () => {
+        const newErrors = {}
 
-            if (formData.newPassword !== formData.confirmNewPassword) {
-                newErrors.confirmNewPassword = 'Passwords do not match'
-            }
+        if (!formData.currentPassword) {
+            newErrors.currentPassword = 'Current password is required'
+        }
+
+        if (!formData.newPassword) {
+            newErrors.newPassword = 'New password is required'
+        } else if (formData.newPassword.length < 6) {
+            newErrors.newPassword = 'Password must be at least 6 characters long'
+        }
+
+        if (formData.newPassword !== formData.confirmNewPassword) {
+            newErrors.confirmNewPassword = 'Passwords do not match'
         }
 
         return newErrors
@@ -100,7 +106,7 @@ const Profile = () => {
         setSuccessMessage('')
 
         try {
-            // Update user data
+            // Update user data including preferences
             const updatedData = {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
@@ -109,13 +115,41 @@ const Profile = () => {
                 preferences: preferences
             }
 
-            // In a real app, you'd make an API call here
-            updateUser(updatedData)
+            const result = await updateUser(updatedData)
 
-            // If password change was requested, handle it
-            if (showChangePassword) {
-                // In a real app, you'd verify current password and update
-                console.log('Password change requested')
+            if (result.success) {
+                setIsEditing(false)
+                setSuccessMessage('Profile updated successfully!')
+                // Clear success message after 3 seconds
+                setTimeout(() => setSuccessMessage(''), 3000)
+            } else {
+                setErrors({ submit: result.error })
+            }
+
+        } catch (error) {
+            console.error('Profile update error:', error)
+            setErrors({ submit: 'Failed to update profile. Please try again.' })
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handlePasswordUpdate = async (e) => {
+        e.preventDefault()
+
+        const newErrors = validatePasswordForm()
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors)
+            return
+        }
+
+        setPasswordLoading(true)
+        setErrors({})
+
+        try {
+            const result = await updatePassword(formData.currentPassword, formData.newPassword)
+
+            if (result.success) {
                 setShowChangePassword(false)
                 setFormData(prev => ({
                     ...prev,
@@ -123,18 +157,17 @@ const Profile = () => {
                     newPassword: '',
                     confirmNewPassword: ''
                 }))
+                setSuccessMessage('Password updated successfully!')
+                setTimeout(() => setSuccessMessage(''), 3000)
+            } else {
+                setErrors({ password: result.error })
             }
 
-            setIsEditing(false)
-            setSuccessMessage('Profile updated successfully!')
-
-            // Clear success message after 3 seconds
-            setTimeout(() => setSuccessMessage(''), 3000)
-
         } catch (error) {
-            setErrors({ submit: 'Failed to update profile. Please try again.' })
+            console.error('Password update error:', error)
+            setErrors({ password: 'Failed to update password. Please try again.' })
         } finally {
-            setIsLoading(false)
+            setPasswordLoading(false)
         }
     }
 
@@ -196,6 +229,7 @@ const Profile = () => {
                                     <button
                                         onClick={handleCancel}
                                         className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                                        disabled={isLoading}
                                     >
                                         Cancel
                                     </button>
@@ -223,8 +257,9 @@ const Profile = () => {
                                             type="text"
                                             value={formData.firstName}
                                             onChange={handleInputChange}
-                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${errors.firstName ? 'border-red-300' : 'border-gray-300'
-                                                }`}
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                                                errors.firstName ? 'border-red-300' : 'border-gray-300'
+                                            }`}
                                         />
                                     ) : (
                                         <p className="text-gray-900 py-2">{user?.firstName || 'Not set'}</p>
@@ -244,8 +279,9 @@ const Profile = () => {
                                             type="text"
                                             value={formData.lastName}
                                             onChange={handleInputChange}
-                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${errors.lastName ? 'border-red-300' : 'border-gray-300'
-                                                }`}
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                                                errors.lastName ? 'border-red-300' : 'border-gray-300'
+                                            }`}
                                         />
                                     ) : (
                                         <p className="text-gray-900 py-2">{user?.lastName || 'Not set'}</p>
@@ -267,8 +303,9 @@ const Profile = () => {
                                         type="email"
                                         value={formData.email}
                                         onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${errors.email ? 'border-red-300' : 'border-gray-300'
-                                            }`}
+                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                                            errors.email ? 'border-red-300' : 'border-gray-300'
+                                        }`}
                                     />
                                 ) : (
                                     <p className="text-gray-900 py-2">{user?.email || 'Not set'}</p>
@@ -296,6 +333,12 @@ const Profile = () => {
                                     <p className="text-gray-900 py-2">{user?.phone || 'Not set'}</p>
                                 )}
                             </div>
+
+                            {errors.submit && (
+                                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                                    <p className="text-sm text-red-600">{errors.submit}</p>
+                                </div>
+                            )}
                         </form>
                     </div>
 
@@ -307,7 +350,7 @@ const Profile = () => {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <h3 className="text-sm font-medium text-gray-900">Password</h3>
-                                    <p className="text-sm text-gray-600">Last changed 30 days ago</p>
+                                    <p className="text-sm text-gray-600">Change your account password</p>
                                 </div>
                                 <button
                                     onClick={() => setShowChangePassword(!showChangePassword)}
@@ -318,7 +361,7 @@ const Profile = () => {
                             </div>
 
                             {showChangePassword && (
-                                <form onSubmit={handleSubmit} className="space-y-4 pt-4 border-t">
+                                <form onSubmit={handlePasswordUpdate} className="space-y-4 pt-4 border-t">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Current Password
@@ -328,8 +371,9 @@ const Profile = () => {
                                             type="password"
                                             value={formData.currentPassword}
                                             onChange={handleInputChange}
-                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${errors.currentPassword ? 'border-red-300' : 'border-gray-300'
-                                                }`}
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                                                errors.currentPassword ? 'border-red-300' : 'border-gray-300'
+                                            }`}
                                         />
                                         {errors.currentPassword && (
                                             <p className="mt-1 text-sm text-red-600">{errors.currentPassword}</p>
@@ -345,8 +389,9 @@ const Profile = () => {
                                             type="password"
                                             value={formData.newPassword}
                                             onChange={handleInputChange}
-                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${errors.newPassword ? 'border-red-300' : 'border-gray-300'
-                                                }`}
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                                                errors.newPassword ? 'border-red-300' : 'border-gray-300'
+                                            }`}
                                         />
                                         {errors.newPassword && (
                                             <p className="mt-1 text-sm text-red-600">{errors.newPassword}</p>
@@ -362,20 +407,28 @@ const Profile = () => {
                                             type="password"
                                             value={formData.confirmNewPassword}
                                             onChange={handleInputChange}
-                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${errors.confirmNewPassword ? 'border-red-300' : 'border-gray-300'
-                                                }`} />
+                                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                                                errors.confirmNewPassword ? 'border-red-300' : 'border-gray-300'
+                                            }`}
+                                        />
                                         {errors.confirmNewPassword && (
                                             <p className="mt-1 text-sm text-red-600">{errors.confirmNewPassword}</p>
                                         )}
                                     </div>
 
+                                    {errors.password && (
+                                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                                            <p className="text-sm text-red-600">{errors.password}</p>
+                                        </div>
+                                    )}
+
                                     <div className="flex justify-end">
                                         <button
                                             type="submit"
-                                            disabled={isLoading}
+                                            disabled={passwordLoading}
                                             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                         >
-                                            {isLoading ? 'Updating...' : 'Update Password'}
+                                            {passwordLoading ? 'Updating...' : 'Update Password'}
                                         </button>
                                     </div>
                                 </form>
@@ -400,8 +453,9 @@ const Profile = () => {
                                                 handlePreferenceChange('notifications', type, e.target.checked)
                                             }
                                             className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                                            disabled={!isEditing}
                                         />
-                                        <span className="text-sm text-gray-700 capitalize">{type}</span>
+                                        <span className="text-sm text-gray-700 capitalize">{type} notifications</span>
                                     </label>
                                 ))}
                             </div>
@@ -413,12 +467,15 @@ const Profile = () => {
                             <select
                                 value={preferences.timezone}
                                 onChange={(e) => setPreferences((prev) => ({ ...prev, timezone: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                disabled={!isEditing}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
                             >
                                 <option value="UTC">UTC</option>
-                                <option value="EST">EST</option>
-                                <option value="PST">PST</option>
-                                <option value="PKT">PKT</option>
+                                <option value="EST">EST (Eastern)</option>
+                                <option value="PST">PST (Pacific)</option>
+                                <option value="PKT">PKT (Pakistan)</option>
+                                <option value="GMT">GMT (Greenwich)</option>
+                                <option value="CET">CET (Central European)</option>
                             </select>
                         </div>
 
@@ -428,12 +485,15 @@ const Profile = () => {
                             <select
                                 value={preferences.language}
                                 onChange={(e) => setPreferences((prev) => ({ ...prev, language: e.target.value }))}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                disabled={!isEditing}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
                             >
                                 <option value="en">English</option>
                                 <option value="es">Spanish</option>
                                 <option value="fr">French</option>
                                 <option value="ur">Urdu</option>
+                                <option value="ar">Arabic</option>
+                                <option value="de">German</option>
                             </select>
                         </div>
                     </div>
@@ -443,14 +503,30 @@ const Profile = () => {
                 <div className="space-y-6">
                     <div className="bg-white rounded-lg shadow-sm border p-6">
                         <div className="flex items-center gap-4">
-                            <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center">
-                                <User className="h-8 w-8 text-gray-500" />
+                            <div className="h-16 w-16 rounded-full bg-primary-600 flex items-center justify-center">
+                                <span className="text-white font-medium text-xl">
+                                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                                </span>
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
                                     {user?.firstName} {user?.lastName}
                                 </h3>
                                 <p className="text-sm text-gray-600">{user?.email}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded-full capitalize">
+                                        {user?.role || 'user'} Account
+                                    </span>
+                                    {user?.isVerified ? (
+                                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                            ✓ Verified
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                                            ⚠ Unverified
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -460,7 +536,7 @@ const Profile = () => {
                         <ul className="space-y-2 text-sm text-gray-700">
                             <li className="flex items-center gap-2">
                                 <Mail className="h-4 w-4 text-gray-500" />
-                                {user?.email}
+                                <span className="truncate">{user?.email}</span>
                             </li>
                             <li className="flex items-center gap-2">
                                 <Phone className="h-4 w-4 text-gray-500" />
@@ -476,6 +552,49 @@ const Profile = () => {
                                     .filter((k) => preferences.notifications[k])
                                     .join(', ') || 'None'}
                             </li>
+                        </ul>
+                    </div>
+
+                    {/* Account Info */}
+                    <div className="bg-white rounded-lg shadow-sm border p-6">
+                        <h3 className="text-sm font-medium text-gray-900 mb-4">Account Info</h3>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Member since:</span>
+                                <span className="text-gray-900">
+                                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Account type:</span>
+                                <span className="text-gray-900 capitalize">{user?.role || 'User'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Status:</span>
+                                <span className={user?.isVerified ? 'text-green-600' : 'text-yellow-600'}>
+                                    {user?.isVerified ? 'Verified' : 'Pending Verification'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-600">Last updated:</span>
+                                <span className="text-gray-900">
+                                    {user?.updatedAt ? new Date(user.updatedAt).toLocaleDateString() : 'Never'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Security Tips */}
+                    <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+                        <h3 className="text-sm font-medium text-blue-900 mb-3 flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            Security Tips
+                        </h3>
+                        <ul className="space-y-2 text-sm text-blue-800">
+                            <li>• Use a strong, unique password</li>
+                            <li>• Keep your email address current</li>
+                            <li>• Review your account regularly</li>
+                            <li>• Enable notifications for security</li>
                         </ul>
                     </div>
                 </div>

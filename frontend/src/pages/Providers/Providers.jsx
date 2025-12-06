@@ -84,7 +84,7 @@ const Providers = () => {
           {canAddProvider && (
             <Link
               to="/providers/add"
-              className="mt-4 sm:mt-0 bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center"
+              className="mt-4 sm:mt-0 bg-primary-600 text-black px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors flex items-center"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Provider
