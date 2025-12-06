@@ -14,7 +14,7 @@ const Services = () => {
   const [viewMode, setViewMode] = useState('grid')
   const [filteredServices, setFilteredServices] = useState([])
 
-  const canAddService = user && (user.role === 'admin' || user.role === 'provider')
+  const canAddService = user && user.role === 'provider' // Only providers can add services
   const categories = getCategories()
 
   // Filter services based on search and category

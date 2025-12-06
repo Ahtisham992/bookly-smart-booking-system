@@ -19,6 +19,21 @@ const ProviderDetail = () => {
 
   const canEdit = user && (user.role === 'admin' || (user.role === 'provider' && user.id === provider?.id))
 
+  // Extract data from provider or providerInfo
+  const providerData = provider ? {
+    imageUrl: provider.profileImage || provider.imageUrl || provider.providerInfo?.profileImage,
+    bio: provider.bio || provider.providerInfo?.bio || 'No bio available',
+    specialties: provider.specialties || provider.providerInfo?.specialties || [],
+    category: provider.category || provider.providerInfo?.category || 'Uncategorized',
+    rating: provider.rating || provider.providerInfo?.rating || 0,
+    reviewCount: provider.reviewCount || provider.providerInfo?.reviewCount || 0,
+    location: provider.location || provider.providerInfo?.location || 'Location not set',
+    experience: provider.experience || provider.providerInfo?.experience || 0,
+    priceRange: provider.priceRange || provider.providerInfo?.priceRange || 'Contact for pricing',
+    availability: provider.availability || provider.providerInfo?.availability || 'Contact for availability',
+    verified: provider.verified || provider.providerInfo?.verified || false
+  } : null
+
   useEffect(() => {
     const loadProviderData = async () => {
       setLoading(true)
@@ -176,9 +191,9 @@ const ProviderDetail = () => {
                 {/* Profile Image */}
                 <div className="relative -mt-16 mb-4">
                   <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-lg">
-                    {(provider.imageUrl || provider.providerInfo?.profileImage) ? (
+                    {providerData?.imageUrl ? (
                       <img
-                        src={provider.imageUrl || provider.providerInfo?.profileImage}
+                        src={providerData.imageUrl}
                         alt={`${provider.firstName} ${provider.lastName}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -189,10 +204,10 @@ const ProviderDetail = () => {
                     ) : null}
                     <div 
                       className={`w-full h-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-3xl ${
-                        (provider.imageUrl || provider.providerInfo?.profileImage) ? 'hidden' : ''
+                        providerData?.imageUrl ? 'hidden' : ''
                       }`}
                     >
-                      {provider.firstName[0]}{provider.lastName[0]}
+                      {provider.firstName?.[0]}{provider.lastName?.[0]}
                     </div>
                   </div>
 
@@ -229,36 +244,33 @@ const ProviderDetail = () => {
                       <h1 className="text-3xl font-bold text-gray-900">
                         {provider.firstName} {provider.lastName}
                       </h1>
-                      {provider.verified && (
-                        <CheckCircle className="w-6 h-6 text-green-500" title="Verified Provider" />
+                      {providerData.verified && (
+                        <CheckCircle className="w-5 h-5 text-green-500" title="Verified Provider" />
                       )}
                     </div>
-                    <p className="text-lg text-primary-600 font-medium mb-2">
-                      {provider.category}
-                    </p>
+                    <p className="text-lg text-primary-600 font-medium">{providerData.category}</p>
                   </div>
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-center mb-1">
                       <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                      <span className="text-xl font-bold ml-1">{provider.rating}</span>
                     </div>
-                    <span className="text-sm text-gray-600">{provider.reviewCount} reviews</span>
+                    <div className="text-xl font-bold text-gray-900">{providerData.rating.toFixed(1)}</div>
+                    <span className="text-sm text-gray-600">{providerData.reviewCount} reviews</span>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-xl font-bold text-gray-900 mb-1">{provider.experience}+</div>
+                    <div className="flex items-center justify-center mb-1">
+                      <Clock className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <div className="text-xl font-bold text-gray-900">{providerData.experience}+</div>
                     <span className="text-sm text-gray-600">years exp</span>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-xl font-bold text-gray-900 mb-1">{providerServices.length}</div>
-                    <span className="text-sm text-gray-600">services</span>
-                  </div>
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <MapPin className="w-5 h-5 text-gray-400 mx-auto mb-1" />
-                    <span className="text-sm text-gray-600">{provider.location}</span>
+                    <span className="text-sm text-gray-600">{providerData.location}</span>
                   </div>
                 </div>
 
@@ -279,22 +291,24 @@ const ProviderDetail = () => {
             {/* About */}
             <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">About</h2>
-              <p className="text-gray-600 leading-relaxed mb-4">{provider.bio}</p>
+              <p className="text-gray-600 leading-relaxed mb-4">{providerData.bio}</p>
               
               {/* Specialties */}
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Specialties</h3>
-                <div className="flex flex-wrap gap-2">
-                  {provider.specialties?.map((specialty, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
-                    >
-                      {specialty}
-                    </span>
-                  ))}
+              {providerData.specialties.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Specialties</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {providerData.specialties.map((specialty, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
+                      >
+                        {specialty}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Services */}
@@ -339,7 +353,7 @@ const ProviderDetail = () => {
             <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6 mb-6">
               <div className="text-center mb-6">
                 <div className="text-2xl font-bold text-gray-900 mb-2">
-                  {provider.priceRange}
+                  {providerData.priceRange}
                 </div>
                 <div className="text-sm text-gray-600">
                   Price range for services
@@ -356,26 +370,26 @@ const ProviderDetail = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Experience:</span>
-                  <span className="font-medium">{provider.experience}+ years</span>
+                  <span className="font-medium">{providerData.experience}+ years</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Location:</span>
-                  <span className="font-medium">{provider.location}</span>
+                  <span className="font-medium">{providerData.location}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Availability:</span>
                   <span className="font-medium text-green-600">Available</span>
                 </div>
-                {provider.availability && (
+                {providerData.availability && (
                   <div className="pt-3 border-t border-gray-200">
                     <span className="text-gray-600 text-xs">Hours:</span>
-                    <p className="text-xs text-gray-600 mt-1">{provider.availability}</p>
+                    <p className="text-xs text-gray-600 mt-1">{providerData.availability}</p>
                   </div>
                 )}
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500 text-center">
-                {provider.verified ? 'Verified provider' : 'Verification pending'} • Free consultation available
+                {providerData.verified ? 'Verified provider' : 'Verification pending'} • Free consultation available
               </div>
             </div>
 

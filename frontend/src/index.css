@@ -10,3 +10,30 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 }
+
+/* Force button visibility - CRITICAL FIX */
+@layer components {
+  .bg-primary-600 {
+    background-color: #2563eb !important;
+  }
+  
+  .bg-primary-700 {
+    background-color: #1d4ed8 !important;
+  }
+  
+  .hover\:bg-primary-700:hover {
+    background-color: #1d4ed8 !important;
+  }
+  
+  .text-white {
+    color: #ffffff !important;
+  }
+  
+  .text-primary-600 {
+    color: #2563eb !important;
+  }
+  
+  .text-primary-700 {
+    color: #1d4ed8 !important;
+  }
+}

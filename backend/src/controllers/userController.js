@@ -97,8 +97,8 @@ exports.updateUser = async (req, res) => {
       }
     })
 
-    // Handle providerInfo separately for providers
-    if (req.body.providerInfo && req.user.role === 'provider') {
+    // Handle providerInfo separately for providers and admins
+    if (req.body.providerInfo && (req.user.role === 'provider' || req.user.role === 'admin')) {
       fieldsToUpdate.providerInfo = {
         ...user.providerInfo?.toObject?.() || user.providerInfo || {},
         ...req.body.providerInfo

@@ -16,7 +16,7 @@ const Providers = () => {
   const [viewMode, setViewMode] = useState('grid')
   const [filteredProviders, setFilteredProviders] = useState([])
 
-  const canAddProvider = user && (user.role === 'admin')
+  const canAddProvider = false // Admin should not add providers directly
   const categories = getCategories()
 
   // Filter and sort providers based on search, category, and other filters
@@ -28,24 +28,35 @@ const Providers = () => {
     }
 
     if (selectedCategory) {
-      result = result.filter(provider => provider.category === selectedCategory)
+      result = result.filter(provider => {
+        const category = provider.category || provider.providerInfo?.category
+        return category === selectedCategory
+      })
     }
 
     if (verifiedOnly) {
-      result = result.filter(provider => provider.verified)
+      result = result.filter(provider => {
+        return provider.verified || provider.isVerified || provider.providerInfo?.verified
+      })
     }
 
     // Sort providers
     result = result.sort((a, b) => {
       switch (sortBy) {
         case 'rating':
-          return b.rating - a.rating
+          const aRating = a.rating || a.providerInfo?.rating || 0
+          const bRating = b.rating || b.providerInfo?.rating || 0
+          return bRating - aRating
         case 'experience':
-          return b.experience - a.experience
+          const aExp = a.experience || a.providerInfo?.experience || 0
+          const bExp = b.experience || b.providerInfo?.experience || 0
+          return bExp - aExp
         case 'name':
           return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
         case 'reviews':
-          return b.reviewCount - a.reviewCount
+          const aReviews = a.reviewCount || a.providerInfo?.reviewCount || 0
+          const bReviews = b.reviewCount || b.providerInfo?.reviewCount || 0
+          return bReviews - aReviews
         default:
           return 0
       }

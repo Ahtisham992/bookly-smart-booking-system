@@ -48,9 +48,10 @@ const ProviderSettings = () => {
       priceRange: user.providerInfo?.priceRange || user.priceRange || ''
     })
 
-    // Set image preview if exists
-    if (user.imageUrl || user.providerInfo?.profileImage) {
-      setImagePreview(user.imageUrl || user.providerInfo?.profileImage)
+    // Set image preview if exists - check all possible locations
+    const existingImage = user.profileImage || user.imageUrl || user.providerInfo?.profileImage
+    if (existingImage) {
+      setImagePreview(existingImage)
     }
   }, [user, navigate])
 
@@ -101,9 +102,17 @@ const ProviderSettings = () => {
     setLoading(true)
 
     try {
-      // For now, we'll use the preview URL (base64 or existing URL)
-      // In production, you'd upload to a file storage service first
-      const profileImageUrl = imagePreview
+      // Use the preview URL (base64 or existing URL)
+      // Limit base64 size to prevent database issues
+      let profileImageUrl = imagePreview
+      
+      // If it's a base64 image and too large, warn user
+      if (profileImageUrl && profileImageUrl.startsWith('data:image') && profileImageUrl.length > 100000) {
+        console.warn('Image is large (base64):', profileImageUrl.length, 'characters')
+        // Still try to save it, but user should know
+      }
+
+      console.log('Submitting profile update with image length:', profileImageUrl?.length || 0)
 
       // Update profile
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/users/profile`, {
@@ -132,11 +141,19 @@ const ProviderSettings = () => {
       console.log('Profile update response status:', response.status)
       const data = await response.json()
       console.log('Profile update response data:', data)
+      
+      // Log the returned user to see if image was saved
+      if (data.data) {
+        console.log('Updated user profileImage length:', data.data.profileImage?.length || 0)
+      }
 
       if (data.success || response.ok) {
         alert('Profile updated successfully!')
-        // Refresh page or update context
-        window.location.reload()
+        // Force reload to get fresh user data from server
+        // This ensures the auth context gets the updated user with new image
+        setTimeout(() => {
+          window.location.reload()
+        }, 500)
       } else {
         alert(data.message || 'Failed to update profile')
       }

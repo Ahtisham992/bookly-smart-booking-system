@@ -23,6 +23,7 @@ import Services from '@pages/Services/Services'
 import ServiceDetail from '@pages/Services/ServiceDetail'
 import AddService from '@pages/Services/AddService'
 import ProviderDashboard from '@pages/Dashboard/ProviderDashboard' // ✅ New Provider Dashboard
+import AdminDashboard from '@pages/Dashboard/AdminDashboard' // ✅ Admin Dashboard
 import MyBookings from '@pages/Bookings/MyBookings' // ✅ New My Bookings Page
 import LeaveReview from '@pages/Reviews/LeaveReview' // ✅ Leave Review Page
 import ProviderSettings from '@pages/Providers/ProviderSettings' // ✅ Provider Settings Page
@@ -68,6 +69,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <ProviderDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="admin-dashboard" // ✅ Admin Dashboard route
+                    element={
+                      <ProtectedRoute>
+                        <AdminDashboard />
                       </ProtectedRoute>
                     }
                   />
