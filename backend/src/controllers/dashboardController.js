@@ -407,6 +407,7 @@ exports.getAdminDashboard = async (req, res) => {
     sendSuccessResponse(res, dashboardData, 'Admin dashboard data retrieved successfully')
   } catch (error) {
     console.error('Get admin dashboard error:', error)
-    sendErrorResponse(res, 'Failed to get admin dashboard data', 500)
+    console.error('Error stack:', error.stack)
+    sendErrorResponse(res, `Failed to get admin dashboard data: ${error.message}`, 500)
   }
 }

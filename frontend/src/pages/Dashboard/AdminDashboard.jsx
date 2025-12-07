@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Users, UserCheck, DollarSign, Calendar, CheckCircle, XCircle, Briefcase, LayoutDashboard } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext/AuthContext'
 
 const AdminDashboard = () => {
+  const { user } = useAuth()
+
+  // Redirect non-admins
+  if (user && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
+
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState([])
@@ -69,6 +78,38 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleBanUser = async (userId, currentlyBanned) => {
+    const action = currentlyBanned ? 'unban' : 'ban'
+    let banReason = null
+    
+    if (!currentlyBanned) {
+      banReason = prompt('Enter ban reason (optional):')
+    }
+    
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return
+    
+    try {
+      const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          isBanned: !currentlyBanned,
+          bannedAt: !currentlyBanned ? new Date() : null,
+          banReason: !currentlyBanned ? banReason : null
+        })
+      })
+      if (res.ok) {
+        alert(`User ${action}ned successfully!`)
+        loadDashboardData()
+      }
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }
+
   const handleDelete = async (url, type) => {
     if (!window.confirm(`Delete this ${type}?`)) return
     try {
@@ -95,10 +136,10 @@ const AdminDashboard = () => {
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">Statistics</h2>
           <div className="grid grid-cols-4 gap-4">
-            <div className="p-4 bg-blue-50 rounded"><p className="text-sm text-gray-600">Users</p><p className="text-2xl font-bold">{stats?.userStats?.totalUsers || 0}</p></div>
-            <div className="p-4 bg-green-50 rounded"><p className="text-sm text-gray-600">Providers</p><p className="text-2xl font-bold">{stats?.userStats?.providers || 0}</p></div>
-            <div className="p-4 bg-yellow-50 rounded"><p className="text-sm text-gray-600">Services</p><p className="text-2xl font-bold">{services.length}</p></div>
-            <div className="p-4 bg-purple-50 rounded"><p className="text-sm text-gray-600">Bookings</p><p className="text-2xl font-bold">{bookings.length}</p></div>
+            <div className="p-4 bg-blue-50 rounded"><p className="text-sm text-gray-600">Users</p><p className="text-2xl font-bold">{stats?.users?.totalUsers || users.length}</p></div>
+            <div className="p-4 bg-green-50 rounded"><p className="text-sm text-gray-600">Providers</p><p className="text-2xl font-bold text-primary-600 mt-2">{stats?.users?.totalProviders || providers.length}</p></div>
+            <div className="p-4 bg-yellow-50 rounded"><p className="text-sm text-gray-600">Services</p><p className="text-2xl font-bold">{stats?.services?.total || services.length}</p></div>
+            <div className="p-4 bg-purple-50 rounded"><p className="text-sm text-gray-600">Bookings</p><p className="text-2xl font-bold">{stats?.bookings?.total || bookings.length}</p></div>
           </div>
         </div>
         <div className="mt-6 bg-white p-6 rounded-lg shadow">
@@ -143,7 +184,9 @@ const AdminDashboard = () => {
                       }`}>{u.role}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {u.isVerified ? (
+                      {u.isBanned ? (
+                        <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">Banned</span>
+                      ) : u.isVerified ? (
                         <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">Verified</span>
                       ) : (
                         <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">Pending</span>
@@ -151,7 +194,15 @@ const AdminDashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {u.role !== 'admin' && (
-                        <button onClick={() => handleDelete(`http://localhost:5000/api/users/${u._id}`, 'user')} className="text-red-600 hover:text-red-900">Delete</button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleBanUser(u._id, u.isBanned)} 
+                            className={`${u.isBanned ? 'text-green-600 hover:text-green-900' : 'text-orange-600 hover:text-orange-900'}`}
+                          >
+                            {u.isBanned ? 'Unban' : 'Ban'}
+                          </button>
+                          <button onClick={() => handleDelete(`http://localhost:5000/api/users/${u._id}`, 'user')} className="text-red-600 hover:text-red-900">Delete</button>
+                        </div>
                       )}
                     </td>
                   </tr>

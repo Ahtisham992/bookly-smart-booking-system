@@ -1,6 +1,7 @@
 // authController.js - Fixed response structure
 const crypto = require('crypto')
 const User = require('../models/User')
+const { sendWelcomeEmail, sendVerificationEmail } = require('../services/emailService')
 
 // Helper function to send success response
 const sendSuccessResponse = (res, data, message = 'Success', statusCode = 200) => {
@@ -48,8 +49,15 @@ exports.register = async (req, res) => {
     const verificationToken = user.getEmailVerificationToken()
     await user.save()
 
-    // Send verification email (placeholder for now)
-    console.log(`Verification URL: ${process.env.CLIENT_URL}/verify-email/${verificationToken}`)
+    // Send welcome and verification emails
+    try {
+      await sendWelcomeEmail(user)
+      await sendVerificationEmail(user, verificationToken)
+      console.log(`✉️ Welcome and verification emails sent to ${user.email}`)
+    } catch (emailError) {
+      console.error('Email sending error:', emailError)
+      // Don't fail registration if email fails
+    }
 
     sendTokenResponse(user, 201, res, 'Registration successful! Please check your email to verify your account.')
   } catch (error) {
@@ -92,6 +100,16 @@ exports.login = async (req, res) => {
     // Check if account is locked
     if (user.isLocked) {
       return sendErrorResponse(res, 'Account temporarily locked due to too many failed login attempts', 423)
+    }
+
+    // Check if account is banned
+    if (user.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: user.banReason || 'Your account has been banned. Please contact support.',
+        code: 'USER_BANNED',
+        timestamp: new Date().toISOString()
+      })
     }
 
     // Check if account is active

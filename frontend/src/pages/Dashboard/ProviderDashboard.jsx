@@ -1,6 +1,6 @@
 // src/pages/Dashboard/NewProviderDashboard.jsx
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Calendar, Clock, CheckCircle, DollarSign, Plus, ArrowRight, AlertCircle, X, Check, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext/AuthContext'
 import { useServices } from '@/context/ServicesContext/ServicesContext'
@@ -8,6 +8,11 @@ import { bookingService } from '@/services/api'
 
 const NewProviderDashboard = () => {
   const { user } = useAuth()
+
+  // Redirect non-providers
+  if (user && user.role !== 'provider') {
+    return <Navigate to="/dashboard" replace />
+  }
   const { services, fetchServices } = useServices()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -42,7 +47,7 @@ const NewProviderDashboard = () => {
         // Calculate stats
         const pending = bookingsData.filter(b => b.status === 'pending').length
         const today = bookingsData.filter(b => {
-          const bookingDate = new Date(b.date)
+          const bookingDate = new Date(b.scheduledDate || b.date)
           const now = new Date()
           return bookingDate.toDateString() === now.toDateString() && 
                  (b.status === 'confirmed' || b.status === 'pending')
@@ -50,7 +55,7 @@ const NewProviderDashboard = () => {
         const completed = bookingsData.filter(b => b.status === 'completed').length
         const earnings = bookingsData
           .filter(b => b.status === 'completed')
-          .reduce((sum, b) => sum + (b.service?.pricing?.amount || 0), 0)
+          .reduce((sum, b) => sum + (b.pricing?.totalAmount || b.service?.pricing?.amount || 0), 0)
         
         setStats({ pending, today, completed, earnings })
       }
@@ -123,17 +128,17 @@ const NewProviderDashboard = () => {
   const getPendingBookings = () => {
     return bookings
       .filter(b => b.status === 'pending')
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .sort((a, b) => new Date(a.scheduledDate || a.date) - new Date(b.scheduledDate || b.date))
   }
 
   const getTodayBookings = () => {
     const today = new Date().toDateString()
     return bookings
       .filter(b => {
-        const bookingDate = new Date(b.date).toDateString()
+        const bookingDate = new Date(b.scheduledDate || b.date).toDateString()
         return bookingDate === today && (b.status === 'confirmed' || b.status === 'pending')
       })
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+      .sort((a, b) => (a.scheduledTime || a.time || '').localeCompare(b.scheduledTime || b.time || ''))
   }
 
   const getMyServices = () => {

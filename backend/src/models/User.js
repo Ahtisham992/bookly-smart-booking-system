@@ -4,6 +4,11 @@ const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 
 const userSchema = new mongoose.Schema({
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // Allow null values
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -13,7 +18,9 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: function() {
+      return !this.googleId // Password not required for Google OAuth users
+    },
     minlength: [6, 'Password must be at least 6 characters'],
     select: false // Don't return password by default
   },
@@ -50,6 +57,18 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isBanned: {
+    type: Boolean,
+    default: false
+  },
+  bannedAt: {
+    type: Date,
+    default: null
+  },
+  banReason: {
+    type: String,
+    default: null
   },
   preferences: {
     notifications: {

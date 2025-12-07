@@ -36,12 +36,32 @@ exports.protect = async (req, res, next) => {
     // Check if user still exists
     const user = await User.findById(decoded.id)
     if (!user) {
-      return sendErrorResponse(res, 'No user found with this token', 401)
+      return res.status(401).json({
+        success: false,
+        message: 'User account has been deleted',
+        code: 'USER_DELETED',
+        timestamp: new Date().toISOString()
+      })
+    }
+
+    // Check if user is banned
+    if (user.isBanned) {
+      return res.status(403).json({
+        success: false,
+        message: user.banReason || 'Your account has been banned',
+        code: 'USER_BANNED',
+        timestamp: new Date().toISOString()
+      })
     }
 
     // Check if user account is active
     if (!user.isActive) {
-      return sendErrorResponse(res, 'User account has been deactivated', 401)
+      return res.status(401).json({
+        success: false,
+        message: 'User account has been deactivated',
+        code: 'USER_DEACTIVATED',
+        timestamp: new Date().toISOString()
+      })
     }
 
     console.log('Auth middleware - User authenticated:', {

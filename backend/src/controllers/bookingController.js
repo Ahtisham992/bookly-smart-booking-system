@@ -3,6 +3,7 @@ const Booking = require('../models/Booking')
 const Service = require('../models/Service')
 const User = require('../models/User')
 const { sendSuccessResponse, sendErrorResponse } = require('../utils/helpers/responseHelpers')
+const { sendBookingConfirmation, sendBookingAccepted, sendBookingRejected } = require('../services/emailService')
 
 // @desc    Create new booking
 // @route   POST /api/bookings
@@ -100,9 +101,17 @@ exports.createBooking = async (req, res) => {
     await booking.populate([
       { path: 'customer', select: 'firstName lastName email phone' },
       { path: 'provider', select: 'firstName lastName email phone providerInfo' },
-      { path: 'provider', select: 'firstName lastName email phone' },
       { path: 'service', select: 'title description duration pricing' }
     ])
+    
+    // Send booking confirmation email
+    try {
+      await sendBookingConfirmation(booking)
+      console.log(`✉️ Booking confirmation email sent to ${booking.customer.email}`)
+    } catch (emailError) {
+      console.error('Email sending error:', emailError)
+      // Don't fail booking if email fails
+    }
     
     sendSuccessResponse(res, booking, 'Booking created successfully', 201)
   } catch (error) {
@@ -620,6 +629,46 @@ exports.completeBooking = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to complete booking',
+      error: error.message
+    })
+  }
+}
+
+// @desc    Get all bookings (Admin only)
+// @route   GET /api/bookings
+// @access  Private (Admin)
+exports.getAllBookings = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1
+    const limit = parseInt(req.query.limit, 10) || 100
+
+    const bookings = await Booking.find()
+      .populate('customer', 'firstName lastName email')
+      .populate('provider', 'firstName lastName email')
+      .populate('service', 'title pricing')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip((page - 1) * limit)
+
+    const total = await Booking.countDocuments()
+
+    res.status(200).json({
+      success: true,
+      message: 'Bookings retrieved successfully',
+      data: bookings,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    })
+  } catch (error) {
+    console.error('Get all bookings error:', error)
+    console.error('Error stack:', error.stack)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get bookings',
       error: error.message
     })
   }

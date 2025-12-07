@@ -27,6 +27,7 @@ import AdminDashboard from '@pages/Dashboard/AdminDashboard' // ✅ Admin Dashbo
 import MyBookings from '@pages/Bookings/MyBookings' // ✅ New My Bookings Page
 import LeaveReview from '@pages/Reviews/LeaveReview' // ✅ Leave Review Page
 import ProviderSettings from '@pages/Providers/ProviderSettings' // ✅ Provider Settings Page
+import GoogleAuthCallback from '@pages/Auth/GoogleAuthCallback' // ✅ Google Auth Callback
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
                 {/* Auth routes (no layout) */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/auth/google/success" element={<GoogleAuthCallback />} />
 
                 {/* Protected routes with layout */}
                 <Route path="/" element={<Layout />}>

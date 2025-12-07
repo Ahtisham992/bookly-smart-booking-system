@@ -33,6 +33,12 @@ export const BookingProvider = ({ children }) => {
       setLoading(true)
       setError(null)
       
+      // Admin doesn't have bookings in this context
+      if (user?.role === 'admin') {
+        setBookings([])
+        return { success: true, data: [] }
+      }
+      
       const response = user?.role === 'provider' 
         ? await bookingService.getProviderBookings()
         : await bookingService.getCustomerBookings()

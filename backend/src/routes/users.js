@@ -32,6 +32,6 @@ router
   .route('/:id')
   .get(getUser)
   .put(updateUser)
-  .delete(deleteUser)
+  .delete(authorize('admin'), deleteUser)
 
 module.exports = router

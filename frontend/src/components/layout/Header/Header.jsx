@@ -17,6 +17,20 @@ const Header = () => {
   }
 
   const isProvider = user?.role === 'provider' // ✅ check role
+  const isAdmin = user?.role === 'admin' // ✅ check admin role
+  
+  // Determine dashboard link based on role
+  const getDashboardLink = () => {
+    if (isAdmin) return '/admin-dashboard'
+    if (isProvider) return '/provider-dashboard'
+    return '/dashboard'
+  }
+  
+  const getDashboardLabel = () => {
+    if (isAdmin) return 'Admin Dashboard'
+    if (isProvider) return 'Provider Dashboard'
+    return 'Dashboard'
+  }
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -38,7 +52,7 @@ const Header = () => {
               </Link>
             )}
             {user && (
-              <Link to={isProvider ? "/provider-dashboard" : "/dashboard"} className="text-gray-600 hover:text-gray-900 transition-colors">
+              <Link to={getDashboardLink()} className="text-gray-600 hover:text-gray-900 transition-colors">
                 Dashboard
               </Link>
             )}
@@ -50,7 +64,7 @@ const Header = () => {
                 Providers
               </Link>
             )}
-            {user && !isProvider && (
+            {user && !isProvider && !isAdmin && (
               <Link to="/my-bookings" className="text-gray-600 hover:text-gray-900 transition-colors">
                 My Bookings
               </Link>
@@ -89,12 +103,12 @@ const Header = () => {
                         <p className="text-sm text-gray-500">{user.email}</p>
                       </div>
                       <Link
-                        to={isProvider ? "/provider-dashboard" : "/dashboard"}
+                        to={getDashboardLink()}
                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
                         <LayoutDashboard className="h-4 w-4 mr-2" />
-                        {isProvider ? "Provider Dashboard" : "User Dashboard"}
+                        {getDashboardLabel()}
                       </Link>
                       <Link
                         to={isProvider ? "/provider/settings" : "/profile"}
@@ -144,13 +158,13 @@ const Header = () => {
                 <Link to="/" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Home</Link>
               )}
               {user && (
-                <Link to={isProvider ? "/provider-dashboard" : "/dashboard"} onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Dashboard</Link>
+                <Link to={getDashboardLink()} onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Dashboard</Link>
               )}
               <Link to="/services" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">{isProvider ? "My Services" : "Services"}</Link>
               {!isProvider && (
                 <Link to="/providers" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">Providers</Link>
               )}
-              {user && (
+              {user && !isAdmin && (
                 <Link to="/my-bookings" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">{isProvider ? "Bookings" : "My Bookings"}</Link>
               )}
 
@@ -162,11 +176,11 @@ const Header = () => {
                       <p className="text-sm text-gray-500">{user.email}</p>
                     </div>
                     <Link 
-                      to={isProvider ? "/provider-dashboard" : "/dashboard"} 
+                      to={getDashboardLink()} 
                       onClick={() => setIsMenuOpen(false)} 
                       className="py-2 text-gray-600 hover:text-gray-900"
                     >
-                      {isProvider ? "Provider Dashboard" : "User Dashboard"}
+                      {getDashboardLabel()}
                     </Link>
                     <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="py-2 text-gray-600 hover:text-gray-900">
                       Profile

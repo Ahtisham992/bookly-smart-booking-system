@@ -12,7 +12,7 @@ const {
 } = require('../controllers/serviceController')
 
 const { protect } = require('../middleware/auth')
-const { requireProvider } = require('../middleware/roleAuth')
+const { requireProvider, requireAdmin } = require('../middleware/roleAuth')
 const { verifyServiceOwnership } = require('../middleware/serviceAuth')
 const { uploadSingle } = require('../middleware/uploadMiddleware')
 const { validateCreateService } = require('../middleware/bookingValidation')
@@ -31,8 +31,17 @@ router.get('/:id', getService)
 // Protected routes - Provider only
 router.post('/', protect, requireProvider, validateCreateService, createService)
 router.put('/:id', protect, requireProvider, verifyServiceOwnership, updateService)
-router.delete('/:id', protect, requireProvider, verifyServiceOwnership, deleteService)
 router.get('/provider/:providerId', getServicesByProvider)
 router.put('/:id/photo', protect, requireProvider, verifyServiceOwnership, uploadSingle('image'), servicePhotoUpload)
+
+// Delete service - Provider (own service) or Admin (any service)
+router.delete('/:id', protect, async (req, res, next) => {
+  // Allow admin to delete any service, or provider to delete their own
+  if (req.user.role === 'admin') {
+    return next()
+  }
+  // For providers, verify ownership
+  return verifyServiceOwnership(req, res, next)
+}, deleteService)
 
 module.exports = router

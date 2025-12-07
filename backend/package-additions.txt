@@ -1,0 +1,17 @@
+# Add these packages to your backend/package.json
+
+## Required for Advanced Features:
+
+npm install nodemailer
+npm install passport passport-google-oauth20
+npm install node-cron
+npm install speakeasy qrcode
+npm install socket.io
+npm install twilio
+npm install stripe
+
+## All in one command:
+npm install nodemailer passport passport-google-oauth20 node-cron speakeasy qrcode socket.io twilio stripe
+
+## Dev Dependencies (if needed):
+npm install --save-dev @types/nodemailer @types/passport

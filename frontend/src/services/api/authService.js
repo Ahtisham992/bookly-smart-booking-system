@@ -26,6 +26,20 @@ const apiCall = async (endpoint, options = {}) => {
     console.log('API response:', { status: response.status, data }) // Debug log
 
     if (!response.ok) {
+      // Check if user was deleted, deactivated, or banned
+      if (data.code === 'USER_DELETED' || data.code === 'USER_DEACTIVATED' || data.code === 'USER_BANNED') {
+        // Clear local storage and redirect to login
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        
+        // Show alert with reason
+        if (data.code === 'USER_BANNED') {
+          alert(data.message || 'Your account has been banned')
+        }
+        
+        window.location.href = '/login'
+        throw new Error(data.message || 'Your account is no longer active')
+      }
       throw new Error(data.message || data.error || 'Something went wrong')
     }
 

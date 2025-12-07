@@ -76,31 +76,7 @@ const bookingSchema = new mongoose.Schema({
     meetingLink: String, // for online services
     instructions: String // special location instructions
   },
-  pricing: {
-    serviceFee: {
-      type: Number,
-      required: true
-    },
-    platformFee: {
-      type: Number,
-      default: 0
-    },
-    taxes: {
-      type: Number,
-      default: 0
-    },
-    discount: {
-      amount: { type: Number, default: 0 },
-      code: String,
-      type: {
-        type: String,
-        enum: ['percentage', 'fixed']
-      }
-    },
-    totalAmount: {
-      type: Number,
-      required: true
-    },
+  paymentMethod: {
     currency: {
       type: String,
       default: 'USD'
